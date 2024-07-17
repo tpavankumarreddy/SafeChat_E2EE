@@ -1,4 +1,4 @@
-# emailchat
+# SafeChat E2EE
 
 A new Flutter project.
 

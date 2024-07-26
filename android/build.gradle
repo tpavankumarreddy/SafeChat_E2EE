@@ -1,37 +1,18 @@
-plugins {
-    id 'com.android.tools.build:gradle' version '8.5.1'
-    id 'org.jetbrains.kotlin.android' version '1.8.0'
-    id 'com.google.gms.google-services' version '4.4.2' apply false
-}
-
-// Configuration for the build script
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
+    allprojects {
+        repositories {
+            google()
+            mavenCentral()
+        }
     }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.0'
-        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.0'
-        classpath 'com.google.gms:google-services:4.4.2'
+
+    rootProject.buildDir = '../build'
+    subprojects {
+        project.buildDir = "${rootProject.buildDir}/${project.name}"
     }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
+    subprojects {
+        project.evaluationDependsOn(':app')
     }
-}
 
-rootProject.buildDir = '../build'
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(':app')
-}
-
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
-}
+    tasks.register("clean", Delete) {
+        delete rootProject.buildDir
+    }

@@ -74,7 +74,7 @@ class RegisterPage extends StatelessWidget{
                     final value = _otpController.text;
                     if (EmailOTP.verifyOTP(otp: value)) {
                     print("OTP is verified");
-                    auth.signUpWithEmailPassword(_emailController.text, _pwController.text);
+                    auth.signUpWithEmailPassword(_emailController.text, _pwController.text, value);
                     Navigator.pop(context);
                     } else{
                       showDialog(

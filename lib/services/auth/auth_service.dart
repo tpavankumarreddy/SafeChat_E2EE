@@ -27,7 +27,7 @@ class AuthService {
   }
 
   // Sign up
-  Future<UserCredential> signUpWithEmailPassword(String email, String password) async {
+  Future<UserCredential> signUpWithEmailPassword(String email, String password, String otp) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
 
@@ -37,7 +37,7 @@ class AuthService {
       });
 
       // Generate and store cryptographic keys
-      await KeyGenerator().generateAndStoreKeys(userCredential.user!.uid,email);
+      await KeyGenerator().generateAndStoreKeys(userCredential.user!.uid,email,otp);
 
       print("Keys generated and stored in firestone database.");
       return userCredential;

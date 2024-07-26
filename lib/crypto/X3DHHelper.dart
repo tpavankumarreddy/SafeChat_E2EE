@@ -123,7 +123,7 @@ class X3DHHelper {
     final localSignedPreKeyPairPrivate = await _readFromSecureStorage('signedPreKeyPairPrivate');
     final localSignedPreKeyPairPublic = await _readFromSecureStorage('signedPreKeyPairPublic');
 
-    Future<String?> _readFromSecureStoragee(String key) async {
+    Future<String?> readFromSecureStoragee(String key) async {
       return await _secureStorage.read(key: key);
     }
 
@@ -134,8 +134,8 @@ class X3DHHelper {
         String privateKeyKey = 'oneTimePreKeyPairPrivate$i';
         String publicKeyKey = 'oneTimePreKeyPairPublic$i';
 
-        final privateKeyValue = await _readFromSecureStoragee(privateKeyKey);
-        final publicKeyValue = await _readFromSecureStoragee(publicKeyKey);
+        final privateKeyValue = await readFromSecureStoragee(privateKeyKey);
+        final publicKeyValue = await readFromSecureStoragee(publicKeyKey);
 
         if (privateKeyValue != null && publicKeyValue != null) {
           oneTimePreKeys.add(

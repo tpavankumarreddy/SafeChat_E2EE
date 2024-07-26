@@ -56,7 +56,7 @@ class RegisterPage extends StatelessWidget{
       try{
         //String otp = OTPService.generateOTP();
         await otpService.sendOTP(myAuth,_emailController.text,_nameController.text);
-        emailotp.sendOTP();
+        //emailotp.sendOTP();
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -72,7 +72,7 @@ class RegisterPage extends StatelessWidget{
                 TextButton(
                   onPressed: ()  async {
                     final value = _otpController.text;
-                    if (await myAuth.verifyOTP(otp: value)) {
+                    if (EmailOTP.verifyOTP(otp: value)) {
                     print("OTP is verified");
                     auth.signUpWithEmailPassword(_emailController.text, _pwController.text);
                     Navigator.pop(context);
@@ -153,7 +153,7 @@ class RegisterPage extends StatelessWidget{
   @override
   Widget build(BuildContext context){
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

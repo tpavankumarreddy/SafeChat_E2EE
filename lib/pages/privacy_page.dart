@@ -17,7 +17,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Security Encryption'),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
               shrinkWrap: true,

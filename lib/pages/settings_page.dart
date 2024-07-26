@@ -11,8 +11,8 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
-            leading: Icon(Icons.lock),
-            title: Text('Privacy'),
+            leading: const Icon(Icons.lock),
+            title: const Text('Privacy'),
             onTap: () {
               Navigator.push(
                 context,

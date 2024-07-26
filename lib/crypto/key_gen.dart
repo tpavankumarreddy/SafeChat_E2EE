@@ -5,7 +5,7 @@ import 'dart:convert';
 
 class KeyGenerator {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
 
   Future<void> generateAndStoreKeys(String uid, String email) async {

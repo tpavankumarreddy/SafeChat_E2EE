@@ -7,24 +7,27 @@ class OTPService {
     try {
 
       var path="/home/pavan9999/AndroidStudioProjects/emailchat/lib/images/safechat.png";
-      myAuth.setSMTP(
+      EmailOTP.setSMTP(
           host: "smtp.gmail.com",
-          auth: true,
+          //auth: true,
           username: "safechat.e2ee@gmail.com",
           password: "ekfm tzhm zrpj pnef",
-          secure: "TLS",
-          port: 587
+          secureType: SecureType.tls,
+          emailPort: EmailPort.port587
       );
 
-      myAuth.setConfig(
+      EmailOTP.config(
           appEmail: "safechat.e2ee@gmail.com",
           appName: "SafeChat",
-          userEmail: email,
+          //userEmail: email,
           otpLength: 6,
-          otpType: OTPType.digitsOnly
+          otpType: OTPType.numeric
       );
 
-      var template = '''
+
+
+      EmailOTP.setTemplate(
+          template: '''
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -64,10 +67,7 @@ class OTPService {
       </body>
       </html>
 
-      ''';
-
-      myAuth.setTemplate(
-          render: template
+      ''',
       );
 
      // myAuth.setTemplate(render: template);
@@ -96,7 +96,7 @@ class OTPService {
       // Set custom template
      // myAuth.setTemplate(render: customTemplate);
 
-      if (await myAuth.sendOTP() == true) {
+      if (await EmailOTP.sendOTP(email: email) == true) {
         print("OTP has been sent");
       } else {
         print("Oops, OTP send failed");

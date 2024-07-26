@@ -4,7 +4,6 @@ import  'package:flutter/material.dart';
 import '../data/database_helper.dart';
 import '../pages/address_book_page.dart';
 import '../pages/notes_page.dart';
-import '../pages/otp_page.dart';
 import '../services/auth/auth_service.dart';
 import '../pages/settings_page.dart';
 
@@ -34,7 +33,7 @@ class MyDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-        backgroundColor: Theme.of(context).colorScheme.background,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -55,7 +54,7 @@ class MyDrawer extends StatelessWidget {
                           Navigator.push( // Navigate to the ProfilePage
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ProfilePage(),
+                              builder: (context) => const ProfilePage(),
                             ),
                           );
                         }

@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../components/my_drawer.dart';
@@ -12,7 +10,6 @@ import '../crypto/X3DHHelper.dart';
 import '../crypto/handshake_handler.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/chat_services.dart';
-import 'address_book_page.dart';
 import 'chat_page.dart';
 import '../data/database_helper.dart'; // Import the DatabaseHelper class
 

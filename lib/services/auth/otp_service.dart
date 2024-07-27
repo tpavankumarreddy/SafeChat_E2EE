@@ -6,7 +6,7 @@ class OTPService {
 
     try {
 
-      var path="/home/pavan9999/AndroidStudioProjects/emailchat/lib/images/safechat.png";
+      // var path="/home/pavan9999/AndroidStudioProjects/emailchat/lib/images/safechat.png";
       EmailOTP.setSMTP(
           host: "smtp.gmail.com",
           //auth: true,
@@ -53,9 +53,11 @@ class OTPService {
             <div style="margin-top: 20px;">
                 <h1>Hello, $name</h1>
                 
-                <h2>Thanks for choosing SafeChat, where your <b>privacy</b> matters!</h2>
+                <h2>Thanks for choosing </h2>
+                <h2>{{appName}}</h2>
+                <h2>, where your <b>privacy</b> matters!</h2>
                 <p>Your One-Time Password (OTP) for verification is:</p>
-                <h1 style="text-align: center;">{{otp}}</h1>
+                <h1 style="text-align: center;"><strong>{{otp}}</strong></h1>
                 <p>Please use this OTP to proceed with your registration.</p>
             </div>
 

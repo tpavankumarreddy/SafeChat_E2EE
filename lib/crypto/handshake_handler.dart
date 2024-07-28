@@ -15,7 +15,6 @@ class HandshakeHandler {
 
   Future<void> sendHandshakeMessage(String senderUid, String receiverUid, String receiverEmail, int indexOTPK) async {
 
-    final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(receiverEmail);
 
 
     // Create handshake message
@@ -50,8 +49,9 @@ class HandshakeHandler {
 
     // Store the secret key securely
     List<int> sharedSecretBytes = await sharedSecret.extractBytes();
-    await _secureStorage.write(key: 'secretKey_$remoteEmail', value: base64Encode(sharedSecretBytes));
+    await _secureStorage.write(key: 'shared_Secret_With_$remoteEmail', value: base64Encode(sharedSecretBytes));
     print("Shared secret: $sharedSecretBytes");
+    //print('shared_Secret_With$remoteEmail $base64Decode(secretKey1!)');
 
   }
 }

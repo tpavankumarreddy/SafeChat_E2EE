@@ -1,43 +1,45 @@
-
-
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emailchat/components/chat_bubble.dart';
 import 'package:emailchat/components/my_textfield.dart';
 import 'package:emailchat/services/auth/auth_service.dart';
 import 'package:emailchat/services/chat/chat_services.dart';
 import 'package:flutter/material.dart';
-
+import 'package:emailchat/crypto/encryption_helper.dart';
+import 'package:cryptography/cryptography.dart';
 
 class ChatPage extends StatelessWidget {
   final String receiverEmail;
   final String receiverID;
+  final SecretKey secretKey;
 
-
-   ChatPage({
+  // Removed `const` keyword as the constructor cannot be `const`
+  ChatPage({
     super.key,
     required this.receiverEmail,
     required this.receiverID,
+    required this.secretKey,
   });
 
-  // text controller
+  // Text controller
   final TextEditingController _messageController = TextEditingController();
 
-  //chat &  auth services
+  // Chat & Auth services
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
 
+  // Encryption helper
+  final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
-  // send Message
-  void sendMessage() async {
-    // if there is something inside the textfield
+  // Send Message
+  Future<void> sendMessage() async {
     if (_messageController.text.isNotEmpty) {
-      // send the message
-      await _chatService.sendMessage(receiverID, _messageController.text);
-
-
-      // clear text controller
-     _messageController.clear();
-
+      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, secretKey);
+      await _chatService.sendMessage(receiverID, jsonEncode({
+        'cipherText': encryptedData['cipherText'],
+        'nonce': encryptedData['nonce']
+      }));
+      _messageController.clear();
     }
   }
 
@@ -47,115 +49,132 @@ class ChatPage extends StatelessWidget {
       appBar: AppBar(title: Text(receiverEmail)),
       body: Column(
         children: [
-          // display all messages
-
+          // Display all messages
           Expanded(
             child: _buildMessageList(),
           ),
-
-          // user input
+          // User input
           _buildUserInput(),
         ],
       ),
     );
   }
 
-
-  // build message list
+  // Build message list
   Widget _buildMessageList() {
     String senderID = _authService.getCurrentUser()!.uid;
-    return StreamBuilder(
-        stream: _chatService.getMessages(receiverID, senderID),
-        builder: (context, snapshot) {
-          // error
-          if (snapshot.hasError){
-            return const Text("Error");
-          }
-
-          //loading
-          if (snapshot.connectionState == ConnectionState.waiting){
-            return const Text("Loading..");
-          }
-
-          //return list view
-          return ListView(
-            children: snapshot.data!.docs.map((doc) => _buildMessageItem(doc)).toList(),
-          );
-        },
+    return StreamBuilder<QuerySnapshot>(
+      stream: _chatService.getMessages(receiverID, senderID),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Error: ${snapshot.error}"));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
+          return Center(child: Text("No messages yet"));
+        }
+        return ListView(
+          reverse: true,
+          children: snapshot.data!.docs.map((doc) {
+            return _buildMessageItem(doc);
+          }).toList(),
+        );
+      },
     );
   }
 
-  // build message item
+  // Build message item
+// Build message item
   Widget _buildMessageItem(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String,dynamic>;
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
+
+    if (data.isEmpty) {
+      return const Text("Error loading message");
+    }
 
     bool isCurrentUser = data['senderID'] == _authService.getCurrentUser()!.uid;
 
-    // if current user then align messages to right
+    var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
 
-    var alignment= isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
+    // Safely handle null and type casting issues
+    final cipherText = data['cipherText'] as List<dynamic>? ?? [];
+    final nonce = data['nonce'] as List<dynamic>? ?? [];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-      child: Container(
-          alignment: alignment,
-          child: Column(
-            crossAxisAlignment: isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    if (cipherText.isEmpty || nonce.isEmpty) {
+      return const Text("Error: Message content is missing");
+    }
 
-            children: [
-              ChatBubble(message: data["message"], isCurrentUser: isCurrentUser)
-            ],
-
-
-          ),
-
-
-        // child: Text(
-          //     data["message"],
-          //   style: const TextStyle(
-          //   fontSize: 20,
-          //   fontWeight: FontWeight.bold,
-          //   //fontStyle: FontStyle.italic,
-          //   color: Colors.blue,
-          //   //decoration: TextDecoration.underline,
-          //   decorationColor: Colors.red,
-          //   decorationThickness: 2,
-          // ),
-          // )
+    return FutureBuilder<String>(
+      future: _encryptionHelper.decryptMessage(
+        List<int>.from(cipherText),
+        List<int>.from(nonce),
+        secretKey,
       ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: Text("Error decrypting message: ${snapshot.error}"),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: Text("Message is empty"),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+          child: Container(
+            alignment: alignment,
+            child: ChatBubble(
+              message: snapshot.data!,
+              isCurrentUser: isCurrentUser,
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // build message input
+
+  // Build message input
   Widget _buildUserInput() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: Row(
         children: [
-
-          // text-field should take up most of the space
-          Expanded(child: MyTextField(
-            controller: _messageController,
-            hintText: "Type a message",
-            obscuredText: false,
+          Expanded(
+            child: MyTextField(
+              controller: _messageController,
+              hintText: "Type a message",
+              obscuredText: false,
+            ),
           ),
-      ),
-
-        // send button
-        Container(
-          decoration: const BoxDecoration(
-            color: Colors.green,
-            shape: BoxShape.circle
-
+          Container(
+            decoration: const BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
+            margin: const EdgeInsets.only(right: 25),
+            child: IconButton(
+              onPressed: sendMessage,
+              icon: const Icon(Icons.arrow_upward, color: Colors.white),
+            ),
           ),
-          margin: const EdgeInsets.only(right: 25),
-          child: IconButton(
-            onPressed: sendMessage,
-            icon: const Icon(Icons.arrow_upward,color: Colors.white,),
-          ),
-        ),
-      ],
+        ],
       ),
     );
-}
+  }
 }

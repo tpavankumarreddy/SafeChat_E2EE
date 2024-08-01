@@ -3,9 +3,9 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 
 class EncryptionHelper {
-  final _aes = AesCtr.with128bits(macAlgorithm: MacAlgorithm.empty);
+  final _aes = AesCtr.with256bits(macAlgorithm: MacAlgorithm.empty);
 
-    Future<Map<String, dynamic>> encryptMessage(String message, SecretKey secretKey) async {
+  Future<Map<String, dynamic>> encryptMessage(String message, SecretKey secretKey) async {
     final messageBytes = Uint8List.fromList(utf8.encode(message));
     final nonce = _aes.newNonce();
 
@@ -21,7 +21,7 @@ class EncryptionHelper {
     };
   }
 
-    Future<String> decryptMessage(List<int> cipherText, List<int> nonce, SecretKey secretKey) async {
+  Future<String> decryptMessage(List<int> cipherText, List<int> nonce, SecretKey secretKey) async {
     final encryptedData = SecretBox(
       cipherText,
       nonce: nonce,
@@ -35,6 +35,4 @@ class EncryptionHelper {
 
     return utf8.decode(decrypted);
   }
-
-
 }

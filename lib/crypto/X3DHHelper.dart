@@ -45,7 +45,7 @@ class X3DHHelper {
     final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(remoteEmail);
 
     final remoteIdentityKey = SimplePublicKey(base64Decode(remoteKeys['identityKey']), type: KeyPairType.x25519);
-    final remoteSignedPreKey = SimplePublicKey(base64Decode(remoteKeys['signedPreKey']), type: KeyPairType.x25519);
+    final remoteSignedPreKey = SimplePublicKey(base64Decode(remoteKeys['preKey']), type: KeyPairType.x25519);
 
     SimplePublicKey remoteOneTimePreKey;
     final oneTimePrekeys = remoteKeys['oneTimePrekeys'] as List;
@@ -182,7 +182,7 @@ class X3DHHelper {
     final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(remoteEmail);
 
     final remoteIdentityKey = SimplePublicKey(base64Decode(remoteKeys['identityKey']), type: KeyPairType.x25519);
-    final remoteSignedPreKey = SimplePublicKey(base64Decode(remoteKeys['signedPreKey']), type: KeyPairType.x25519);
+    final remoteSignedPreKey = SimplePublicKey(base64Decode(remoteKeys['preKey']), type: KeyPairType.x25519);
 
     SimplePublicKey localOneTimePreKey;
     final oneTimePrekeys = localKeys['oneTimePrekeys'] as List;

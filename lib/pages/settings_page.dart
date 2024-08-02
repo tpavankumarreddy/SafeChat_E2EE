@@ -1,3 +1,4 @@
+import 'package:emailchat/pages/themes_data.dart';
 import 'package:flutter/material.dart';
 import 'privacy_page.dart';  // Import the PrivacyPage
 
@@ -17,6 +18,16 @@ class SettingsPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const PrivacyPage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock),
+            title: const Text('Appearance'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const themesPage()),
               );
             },
           ),

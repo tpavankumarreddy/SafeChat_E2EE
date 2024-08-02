@@ -52,6 +52,19 @@ dependencies:
   cryptography_flutter: ^2.3.2
   x25519: ^0.1.1
   cloud_functions: ^5.0.3
+  provider: ^6.1.2
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 dev_dependencies:

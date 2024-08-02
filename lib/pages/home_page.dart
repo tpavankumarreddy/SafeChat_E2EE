@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../components/my_drawer.dart';
@@ -12,7 +10,6 @@ import '../crypto/X3DHHelper.dart';
 import '../crypto/handshake_handler.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/chat_services.dart';
-import 'address_book_page.dart';
 import 'chat_page.dart';
 import '../data/database_helper.dart'; // Import the DatabaseHelper class
 
@@ -40,6 +37,36 @@ class _HomePageState extends State<HomePage> {
   late GlobalKey<ScaffoldState> _scaffoldKey;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  Future<void> writeSecureData(String key, String value) async {
+    try {
+      await _secureStorage.write(key: key, value: value);
+      // Write operation is successful
+      print("Data written successfully");
+    } catch (e) {
+      // Write operation failed
+      print("Failed to write data: $e");
+    }
+  }
+
+  Future<void> readSecureData(String key) async {
+    try {
+      String? value = await _secureStorage.read(key: key);
+      if (value != null) {
+        // Read operation is successful
+        print("Data read successfully: $value");
+      } else {
+        // Key does not exist
+        print("No data found for the key: $key");
+      }
+    } catch (e) {
+      // Read operation failed
+      print("Failed to read data: $e");
+    }
+  }
+
+
+
   final ChatService chatService = ChatService();
 
   late List<String> addressBookEmails; // List to store address book emails
@@ -137,7 +164,11 @@ class _HomePageState extends State<HomePage> {
         text: userData["email"],
         onTap: () async {
 
-          final secretKey = await _secureStorage.read(key: 'shared_Secret_With${userData["email"]}');
+          //readSecureData('shared_Secret_With${userData["email"]}');
+
+          //final secretKey = await readSecureData('shared_Secret_With$userData["email"]');
+          String? secretKey = await _secureStorage.read(key: 'shared_Secret_With_${userData["email"]}');
+
           final handshakeMessage = await handshakeHandler.receiveHandshakeMessage(getCurrentUser()!.uid, userData["uid"]);
 
           if (secretKey == null) {
@@ -161,12 +192,22 @@ class _HomePageState extends State<HomePage> {
 
               print("Shared secret: $sharedSecretBytes");
 
-              // Store the shared secret
-              await _secureStorage.write(
-                  key: 'shared_Secret_With$userData["email"]',
-                  value: base64Encode(sharedSecretBytes));
+              // // Store the shared secret
+              // await _secureStorage.write(
+              //     key: 'shared_Secret_With$userData["email"]',
+              //     value: base64Encode(sharedSecretBytes));
+              //
+              // print('Secret key generated and stored for ${userData["email"]}.');
+              // final secretKey1 = await _secureStorage.read(key: 'shared_Secret_With$userData["email"]');
+              // print(secretKey1);
+
+
+              writeSecureData('shared_Secret_With_$userData["email"]', base64Encode(sharedSecretBytes));
 
               print('Secret key generated and stored for ${userData["email"]}.');
+
+
+
 
               await handshakeHandler.sendHandshakeMessage(getCurrentUser()!.uid, userData["uid"], userData["email"],randomIndex);
               print('Handshake message sent from ${authService.getCurrentUser()!.email} to userData["email"].');

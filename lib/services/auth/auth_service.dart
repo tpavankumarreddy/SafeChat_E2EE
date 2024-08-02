@@ -2,8 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emailchat/crypto/key_gen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:cryptography/cryptography.dart';
-import 'dart:convert';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -29,7 +27,7 @@ class AuthService {
   }
 
   // Sign up
-  Future<UserCredential> signUpWithEmailPassword(String email, String password) async {
+  Future<UserCredential> signUpWithEmailPassword(String email, String password, String otp) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
 
@@ -39,7 +37,7 @@ class AuthService {
       });
 
       // Generate and store cryptographic keys
-      await KeyGenerator().generateAndStoreKeys(userCredential.user!.uid,email);
+      await KeyGenerator().generateAndStoreKeys(userCredential.user!.uid,email,otp);
 
       print("Keys generated and stored in firestone database.");
       return userCredential;

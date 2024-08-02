@@ -14,9 +14,9 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   // Profile information
   String _name = "";
-  String _bio = "";
+  final String _bio = "";
   String _selectedImage = 'lib/images/profile-user.png'; // Default profile image
-  String _imagePath = 'lib/images/pawn.png';
+  final String _imagePath = 'lib/images/pawn.png';
 
   final AuthService _authService = AuthService();
 
@@ -178,7 +178,7 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Select Profile Picture'),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             child: ListView.builder(
               shrinkWrap: true,

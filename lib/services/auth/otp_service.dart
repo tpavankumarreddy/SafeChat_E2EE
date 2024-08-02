@@ -6,25 +6,28 @@ class OTPService {
 
     try {
 
-      var path="/home/pavan9999/AndroidStudioProjects/emailchat/lib/images/safechat.png";
-      myAuth.setSMTP(
+      // var path="/home/pavan9999/AndroidStudioProjects/emailchat/lib/images/safechat.png";
+      EmailOTP.setSMTP(
           host: "smtp.gmail.com",
-          auth: true,
+          //auth: true,
           username: "safechat.e2ee@gmail.com",
           password: "ekfm tzhm zrpj pnef",
-          secure: "TLS",
-          port: 587
+          secureType: SecureType.tls,
+          emailPort: EmailPort.port587
       );
 
-      myAuth.setConfig(
+      EmailOTP.config(
           appEmail: "safechat.e2ee@gmail.com",
           appName: "SafeChat",
-          userEmail: email,
+          //userEmail: email,
           otpLength: 6,
-          otpType: OTPType.digitsOnly
+          otpType: OTPType.numeric
       );
 
-      var template = '''
+
+
+      EmailOTP.setTemplate(
+          template: '''
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -50,9 +53,11 @@ class OTPService {
             <div style="margin-top: 20px;">
                 <h1>Hello, $name</h1>
                 
-                <h2>Thanks for choosing SafeChat, where your <b>privacy</b> matters!</h2>
+                <h2>Thanks for choosing </h2>
+                <h2>{{appName}}</h2>
+                <h2>, where your <b>privacy</b> matters!</h2>
                 <p>Your One-Time Password (OTP) for verification is:</p>
-                <h1 style="text-align: center;">{{otp}}</h1>
+                <h1 style="text-align: center;"><strong>{{otp}}</strong></h1>
                 <p>Please use this OTP to proceed with your registration.</p>
             </div>
 
@@ -64,10 +69,7 @@ class OTPService {
       </body>
       </html>
 
-      ''';
-
-      myAuth.setTemplate(
-          render: template
+      ''',
       );
 
      // myAuth.setTemplate(render: template);
@@ -96,7 +98,7 @@ class OTPService {
       // Set custom template
      // myAuth.setTemplate(render: customTemplate);
 
-      if (await myAuth.sendOTP() == true) {
+      if (await EmailOTP.sendOTP(email: email) == true) {
         print("OTP has been sent");
       } else {
         print("Oops, OTP send failed");

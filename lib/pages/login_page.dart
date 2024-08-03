@@ -2,6 +2,9 @@ import 'package:emailchat/services/auth/auth_service.dart';
 import 'package:emailchat/components/my_button.dart';
 import 'package:emailchat/components/my_textfield.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_signin_button/flutter_signin_button.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatelessWidget{
 
@@ -45,6 +48,34 @@ class LoginPage extends StatelessWidget{
     }
 
   }
+  Future<void> signInWithGoogle(BuildContext context) async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(e.toString(), style: const TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +138,13 @@ class LoginPage extends StatelessWidget{
             text: "Login",
             onTap: () => login(context),
             fontSize: 16,
+          ),
+
+          const SizedBox(height: 20),
+          SignInButton(
+            Buttons.Google,
+            text: "Sign in with Google",
+            onPressed: () => signInWithGoogle(context),
           ),
 
           const SizedBox(height: 20),

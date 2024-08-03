@@ -120,8 +120,8 @@ class X3DHHelper {
   Future<Map<String, dynamic>> performX3DHKeyAgreementForBob(String localUid, String remoteEmail, int indexOTPK) async {
     final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate');
     final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic');
-    final localSignedPreKeyPairPrivate = await _readFromSecureStorage('signedPreKeyPairPrivate');
-    final localSignedPreKeyPairPublic = await _readFromSecureStorage('signedPreKeyPairPublic');
+    final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate');
+    final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic');
 
     Future<String?> readFromSecureStoragee(String key) async {
       return await _secureStorage.read(key: key);

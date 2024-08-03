@@ -36,8 +36,8 @@ class ChatPage extends StatelessWidget {
     if (_messageController.text.isNotEmpty) {
       final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, secretKey);
       await _chatService.sendMessage(receiverID, jsonEncode({
-        'cipherText': encryptedData['cipherText'],
-        'nonce': encryptedData['nonce']
+        'cipherText': base64Encode(encryptedData['cipherText']), // Encode to Base64
+        'nonce': base64Encode(encryptedData['nonce']) // Encode to Base64
       }));
       _messageController.clear();
     }
@@ -86,7 +86,6 @@ class ChatPage extends StatelessWidget {
   }
 
   // Build message item
-// Build message item
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
 
@@ -94,13 +93,23 @@ class ChatPage extends StatelessWidget {
       return const Text("Error loading message");
     }
 
+    print("Message data from Firestore: $data");
+
     bool isCurrentUser = data['senderID'] == _authService.getCurrentUser()!.uid;
 
     var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
 
     // Safely handle null and type casting issues
-    final cipherText = data['cipherText'] as List<dynamic>? ?? [];
-    final nonce = data['nonce'] as List<dynamic>? ?? [];
+    final messageJson = data['message'];
+    Map<String, dynamic> messageData;
+    try {
+      messageData = jsonDecode(messageJson);
+    } catch (e) {
+      return const Text("Error decoding message content");
+    }
+
+    final cipherText = messageData['cipherText'] != null ? base64Decode(messageData['cipherText']) : [];
+    final nonce = messageData['nonce'] != null ? base64Decode(messageData['nonce']) : [];
 
     if (cipherText.isEmpty || nonce.isEmpty) {
       return const Text("Error: Message content is missing");
@@ -134,6 +143,8 @@ class ChatPage extends StatelessWidget {
           );
         }
 
+        print("Decrypted message: ${snapshot.data}");
+
         return Padding(
           padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
           child: Container(
@@ -147,7 +158,6 @@ class ChatPage extends StatelessWidget {
       },
     );
   }
-
 
   // Build message input
   Widget _buildUserInput() {

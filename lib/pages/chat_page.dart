@@ -5,7 +5,7 @@ import 'package:emailchat/components/my_textfield.dart';
 import 'package:emailchat/services/auth/auth_service.dart';
 import 'package:emailchat/services/chat/chat_services.dart';
 import 'package:flutter/material.dart';
-import 'package:emailchat/crypto/encryption_helper.dart';
+import 'package:emailchat/crypto/Encryption_helper.dart';
 import 'package:cryptography/cryptography.dart';
 
 class ChatPage extends StatelessWidget {

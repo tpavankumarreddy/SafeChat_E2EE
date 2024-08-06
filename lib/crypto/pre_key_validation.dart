@@ -35,14 +35,14 @@ class PreKeyValidation{
 
 
     Uint8List x = generateSecureRandomScalar();
-    print(x);
+    print("x value :$x");
     print(pubPK.bytes);
       Uint8List xPubpk = Uint8List(32);
 
     Uint8List xInvPubpk = Uint8List(32);
 
     x25519(xPubpk ,x, pubPK.bytes);
-    print(xPubpk);
+    print("x pk pub : $xPubpk");
 
 
     BigInt bytesToBigInt(Uint8List bytes) {
@@ -98,6 +98,7 @@ class PreKeyValidation{
 
     handleServerResponse(Uint8List yx) async {
       Uint8List inverseX = computeModularInverse(x, modulus);
+      print("inverse of x $inverseX");
       x25519(xInvPubpk, inverseX,yx);
       final yTimesPK = {
         'Y times PreKey Public' : base64Encode(xInvPubpk),

@@ -53,6 +53,7 @@ dependencies:
   x25519: ^0.1.0
   cloud_functions: ^5.0.3
   provider: ^6.1.2
+  email_validator: ^3.0.0
 
 
 

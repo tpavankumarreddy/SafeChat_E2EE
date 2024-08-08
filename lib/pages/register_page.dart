@@ -1,3 +1,4 @@
+import 'package:email_validator/email_validator.dart';
 import 'package:emailchat/services/auth/auth_service.dart';
 import 'package:emailchat/components/my_button.dart';
 import 'package:emailchat/components/my_textfield.dart';
@@ -50,6 +51,23 @@ class RegisterPage extends StatelessWidget{
       return;
     }
 
+    if(EmailValidator.validate(_emailController.text)==false){
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Enter a valid email adress.", style: TextStyle(fontSize: 16)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     //passwordds match means create user
     if (_pwController.text==_confirmPwController.text&&  _pwController.text.length>=6) {

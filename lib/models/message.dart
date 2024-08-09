@@ -20,7 +20,7 @@ class Message {
   Map<String,dynamic> toMap() {
     return {
       'senderID': senderID,
-      'senderEmail': receiverID,
+      'senderEmail': senderEmail,
       'receiverID': receiverID,
       'message': message,
       'timestamp' : timestamp,

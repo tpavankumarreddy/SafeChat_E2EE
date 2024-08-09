@@ -135,9 +135,9 @@ class LoginPage extends StatelessWidget{
           //login
 
           MyButton(
-            text: "Login",
+            text: "L O G I N",
             onTap: () => login(context),
-            fontSize: 16,
+            fontSize: 18,
           ),
 
           const SizedBox(height: 20),

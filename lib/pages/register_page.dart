@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:email_validator/email_validator.dart';
 import 'package:emailchat/services/auth/auth_service.dart';
 import 'package:emailchat/components/my_button.dart';
@@ -6,29 +7,48 @@ import 'package:flutter/material.dart';
 import 'package:email_otp/email_otp.dart';
 import '../services/auth/otp_service.dart';
 
-class RegisterPage extends StatelessWidget{
+class RegisterPage extends StatelessWidget {
 
   EmailOTP myAuth = EmailOTP();
 
-  final TextEditingController _nameController=TextEditingController();
-  final TextEditingController _emailController=TextEditingController();
-  final TextEditingController _pwController=TextEditingController();
-  final TextEditingController _confirmPwController=TextEditingController();
-  final TextEditingController _otpController=TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _pwController = TextEditingController();
+  final TextEditingController _confirmPwController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
 
   final void Function()? onTap;
 
+  RegisterPage({super.key, required this.onTap});
 
+  // Timer related fields
+  Timer? _timer;
+  int _remainingTime = 60; // 1 minute
+  bool _showResendButton = false;
 
-  RegisterPage({super.key,required this.onTap});
+  Future<void> _startTimer(VoidCallback onResendAvailable) async {
+    _remainingTime = 60; // reset timer to 1 minutes
+    _showResendButton = false;
 
-  //register method
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingTime > 0) {
+        _remainingTime--;
+      } else {
+        _showResendButton = true;
+        timer.cancel();
+        onResendAvailable();
+      }
+    });
+  }
+
+  Future<void> _resendOTP() async {
+    _startTimer(() {});
+    await OTPService().sendOTP(myAuth, _emailController.text, _nameController.text);
+  }
 
   Future<void> register(BuildContext context) async {
-    // get authservice
-    final auth=AuthService();
-    final otpService = OTPService(); // Instantiate OTPService
-    final emailotp = EmailOTP();
+    final auth = AuthService();
+    final otpService = OTPService();
 
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -51,11 +71,11 @@ class RegisterPage extends StatelessWidget{
       return;
     }
 
-    if(EmailValidator.validate(_emailController.text)==false){
+    if (!EmailValidator.validate(_emailController.text)) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text("Enter a valid email adress.", style: TextStyle(fontSize: 16)),
+          title: const Text("Enter a valid email address.", style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
               onPressed: () {
@@ -69,58 +89,170 @@ class RegisterPage extends StatelessWidget{
       return;
     }
 
-    //passwordds match means create user
-    if (_pwController.text==_confirmPwController.text&&  _pwController.text.length>=6) {
-      try{
-        //String otp = OTPService.generateOTP();
-        await otpService.sendOTP(myAuth,_emailController.text,_nameController.text);
-        //emailotp.sendOTP();
+    if (_pwController.text == _confirmPwController.text && _pwController.text.length >= 6) {
+      try {
+        await otpService.sendOTP(myAuth, _emailController.text, _nameController.text);
+        await _startTimer(() {
+          Navigator.of(context).pop();
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) {
+              return StatefulBuilder(
+                builder: (context, setState) {
+                  return AlertDialog(
+                    title: const Text('Enter OTP'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!_showResendButton) // Show OTP text field only if time hasn't expired
+                          TextField(
+                            controller: _otpController,
+                            decoration: const InputDecoration(labelText: 'OTP'),
+                          ),
+                        const SizedBox(height: 20),
+                        if (_showResendButton)
+                          Column(
+                            children: [
+                              const Text('Time expired. Please click "Resend" to get a new OTP.'),
+                              TextButton(
+                                onPressed: () async {
+                                  await _resendOTP();
+                                  setState(() {
+                                    _showResendButton = false;
+                                  });
+                                },
+                                child: const Text('Resend OTP'),
+                              ),
+                            ],
+                          )
+                        else
+                          Text('OTP expires in $_remainingTime seconds'),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      if (!_showResendButton) // Only show Verify button if time hasn't expired
+                        TextButton(
+                          onPressed: () async {
+                            final value = _otpController.text;
+                            if (EmailOTP.verifyOTP(otp: value)) {
+                              print("OTP is verified");
+                              auth.signUpWithEmailPassword(
+                                  _emailController.text, _pwController.text, value);
+                              Navigator.pop(context);
+                            } else {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text("Invalid OTP.",
+                                      style: TextStyle(fontSize: 18)),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text('Ok'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            Future.delayed(const Duration(seconds: 1), () {
+                              Navigator.pop(context);
+                            });
+                          },
+                          child: const Text('Verify'),
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
+
+        });
+
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) {
-            return AlertDialog(
-              title: const Text('Enter OTP'),
-              content: TextField(
-                controller: _otpController,
-                decoration: const InputDecoration(labelText: 'OTP'),
-
-              ),
-              actions: [
-                TextButton(
-                  onPressed: ()  async {
-                    final value = _otpController.text;
-                    if (EmailOTP.verifyOTP(otp: value)) {
-                    print("OTP is verified");
-                    auth.signUpWithEmailPassword(_emailController.text, _pwController.text, value);
-                    Navigator.pop(context);
-                    } else{
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Invalid OTP.", style: TextStyle(fontSize: 18)),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              child: const Text('Ok'),
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: const Text('Enter OTP'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _otpController,
+                        decoration: const InputDecoration(labelText: 'OTP'),
+                      ),
+                      const SizedBox(height: 20),
+                      _showResendButton
+                          ? TextButton(
+                        onPressed: () async {
+                          _otpController.clear();
+                          await _resendOTP();
+                          setState(() {
+                            _showResendButton = false;
+                          });
+                        },
+                        child: const Text('Resend OTP'),
+                      )
+                          : Text('OTP expires in $_remainingTime seconds'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        _otpController.clear();
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final value = _otpController.text;
+                        if (EmailOTP.verifyOTP(otp: value)) {
+                          _otpController.clear();
+                          print("OTP is verified");
+                          auth.signUpWithEmailPassword(_emailController.text, _pwController.text, value);
+                          Navigator.pop(context);
+                        } else {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text("Invalid OTP.", style: TextStyle(fontSize: 18)),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                  },
+                                  child: const Text('Ok'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      );
-                    }
-                    Future.delayed(const Duration(seconds: 1), () {
-                      Navigator.pop(context);
-                    });
-                  },
-                  child: const Text('Verify'),
-                ),
-              ],
+                          );
+                        }
+                        Future.delayed(const Duration(seconds: 1), () {
+                          Navigator.pop(context);
+                        });
+                      },
+                      child: const Text('Verify'),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
-      } catch(e) {
+      } catch (e) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -128,16 +260,29 @@ class RegisterPage extends StatelessWidget{
           ),
         );
       }
-
-    }
-    else if(_pwController.text!=_confirmPwController.text) {
+    } else if (_pwController.text != _confirmPwController.text) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("Passwords don't match", style: TextStyle(fontSize: 18)),
           actions: [
             TextButton(
-              onPressed: ()  {
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Password length should be at least 6.", style: TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
                 Navigator.pop(context);
               },
               child: const Text('Ok'),
@@ -146,97 +291,59 @@ class RegisterPage extends StatelessWidget{
         ),
       );
     }
-    //passwords not match means show error
-    else{
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Password length should be at least 6.", style: TextStyle(fontSize: 18)),
-            actions: [
-              TextButton(
-                onPressed: ()  {
-                  Navigator.pop(context);
-                },
-                child: const Text('Ok'),
-              ),
-            ],
-        ),
-
-      );
-    }
-
   }
 
-
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            //logo
-            Icon(Icons.message,
-              size : 60,
+            Icon(
+              Icons.message,
+              size: 60,
               color: Theme.of(context).colorScheme.primary,
             ),
-
             const SizedBox(height: 50),
-            //welcome back
-            Text("Hello, let's get you registered.",
+            Text(
+              "Hello, let's get you registered.",
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
-                fontSize:18,
+                fontSize: 18,
               ),
             ),
-
             const SizedBox(height: 50),
-
             MyTextField(
               hintText: "Name",
               obscuredText: false,
               controller: _nameController,
             ),
-
             const SizedBox(height: 10),
-
-            //email
-
             MyTextField(
               hintText: "Email",
               obscuredText: false,
               controller: _emailController,
             ),
-
             const SizedBox(height: 10),
-            //pw
-
             MyTextField(
               hintText: "Password",
               obscuredText: true,
               controller: _pwController,
             ),
-
             const SizedBox(height: 10),
-
             MyTextField(
               hintText: "Confirm Password",
               obscuredText: true,
               controller: _confirmPwController,
             ),
-
             const SizedBox(height: 25),
-
-            //login
-
             MyButton(
               text: "Register",
               onTap: () => register(context),
             ),
-
             const SizedBox(height: 20),
-            //register
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

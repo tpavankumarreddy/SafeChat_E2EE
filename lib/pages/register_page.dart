@@ -8,7 +8,6 @@ import 'package:email_otp/email_otp.dart';
 import '../services/auth/otp_service.dart';
 
 class RegisterPage extends StatelessWidget {
-
   EmailOTP myAuth = EmailOTP();
 
   final TextEditingController _nameController = TextEditingController();
@@ -27,7 +26,7 @@ class RegisterPage extends StatelessWidget {
   bool _showResendButton = false;
 
   Future<void> _startTimer(VoidCallback onResendAvailable) async {
-    _remainingTime = 60; // reset timer to 1 minutes
+    _remainingTime = 60; // reset timer to 1 minute
     _showResendButton = false;
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -92,93 +91,15 @@ class RegisterPage extends StatelessWidget {
     if (_pwController.text == _confirmPwController.text && _pwController.text.length >= 6) {
       try {
         await otpService.sendOTP(myAuth, _emailController.text, _nameController.text);
-        await _startTimer(() {
-          Navigator.of(context).pop();
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) {
-              return StatefulBuilder(
-                builder: (context, setState) {
-                  return AlertDialog(
-                    title: const Text('Enter OTP'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!_showResendButton) // Show OTP text field only if time hasn't expired
-                          TextField(
-                            controller: _otpController,
-                            decoration: const InputDecoration(labelText: 'OTP'),
-                          ),
-                        const SizedBox(height: 20),
-                        if (_showResendButton)
-                          Column(
-                            children: [
-                              const Text('Time expired. Please click "Resend" to get a new OTP.'),
-                              TextButton(
-                                onPressed: () async {
-                                  await _resendOTP();
-                                  setState(() {
-                                    _showResendButton = false;
-                                  });
-                                },
-                                child: const Text('Resend OTP'),
-                              ),
-                            ],
-                          )
-                        else
-                          Text('OTP expires in $_remainingTime seconds'),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Cancel'),
-                      ),
-                      if (!_showResendButton) // Only show Verify button if time hasn't expired
-                        TextButton(
-                          onPressed: () async {
-                            final value = _otpController.text;
-                            if (EmailOTP.verifyOTP(otp: value)) {
-                              print("OTP is verified");
-                              auth.signUpWithEmailPassword(
-                                  _emailController.text, _pwController.text, value);
-                              Navigator.pop(context);
-                            } else {
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text("Invalid OTP.",
-                                      style: TextStyle(fontSize: 18)),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                      },
-                                      child: const Text('Ok'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                            Future.delayed(const Duration(seconds: 1), () {
-                              Navigator.pop(context);
-                            });
-                          },
-                          child: const Text('Verify'),
-                        ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
 
+        await _startTimer(() {
+          // If the timer expires, close the OTP dialog
+          Navigator.of(context).pop();
         });
 
-        showDialog(
+        bool otpVerified = false;
+
+        await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) {
@@ -189,69 +110,114 @@ class RegisterPage extends StatelessWidget {
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextField(
-                        controller: _otpController,
-                        decoration: const InputDecoration(labelText: 'OTP'),
-                      ),
+                      if (!_showResendButton) // Show OTP text field only if time hasn't expired
+                        TextField(
+                          controller: _otpController,
+                          decoration: const InputDecoration(labelText: 'OTP'),
+                        ),
                       const SizedBox(height: 20),
-                      _showResendButton
-                          ? TextButton(
-                        onPressed: () async {
-                          _otpController.clear();
-                          await _resendOTP();
-                          setState(() {
-                            _showResendButton = false;
-                          });
-                        },
-                        child: const Text('Resend OTP'),
-                      )
-                          : Text('OTP expires in $_remainingTime seconds'),
+                      if (_showResendButton)
+                        Column(
+                          children: [
+                            const Text('Time expired. Please click "Resend" to get a new OTP.'),
+                            TextButton(
+                              onPressed: () async {
+                                await _resendOTP();
+                                setState(() {
+                                  _showResendButton = false;
+                                  _remainingTime = 60; // Reset the timer
+                                });
+                              },
+                              child: const Text('Resend OTP'),
+                            ),
+                          ],
+                        )
+                      else
+                        Text('OTP expires in $_remainingTime seconds'),
                     ],
                   ),
                   actions: [
                     TextButton(
                       onPressed: () {
-                        _otpController.clear();
                         Navigator.pop(context);
                       },
                       child: const Text('Cancel'),
                     ),
-                    TextButton(
-                      onPressed: () async {
-                        final value = _otpController.text;
-                        if (EmailOTP.verifyOTP(otp: value)) {
-                          _otpController.clear();
-                          print("OTP is verified");
-                          auth.signUpWithEmailPassword(_emailController.text, _pwController.text, value);
-                          Navigator.pop(context);
-                        } else {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text("Invalid OTP.", style: TextStyle(fontSize: 18)),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                  },
-                                  child: const Text('Ok'),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        Future.delayed(const Duration(seconds: 1), () {
-                          Navigator.pop(context);
-                        });
-                      },
-                      child: const Text('Verify'),
-                    ),
+                    if (!_showResendButton) // Only show Verify button if time hasn't expired
+                      TextButton(
+                        onPressed: () async {
+                          final value = _otpController.text;
+                          if (EmailOTP.verifyOTP(otp: value)) {
+                            otpVerified = true;
+                            Navigator.pop(context); // Close the OTP dialog
+                          } else {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Invalid OTP.",
+                                    style: TextStyle(fontSize: 18)),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('Ok'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Verify'),
+                      ),
                   ],
                 );
               },
             );
           },
         );
+
+        if (otpVerified) {
+          try {
+            await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, _otpController.text);
+          } on Exception catch (e) {
+            if (e.toString().contains('email-already-in-use')) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Email already in use"),
+                  content: const Text("This email is already registered. Please login instead."),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Dismiss the dialog
+                        onTap?.call(); // Navigate to login page
+                      },
+                      child: const Text('Login'),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Registration Error"),
+                  content: Text(e.toString()),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Ok'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+        }
+
       } catch (e) {
         showDialog(
           context: context,

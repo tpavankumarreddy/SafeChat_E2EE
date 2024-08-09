@@ -57,7 +57,10 @@ class RegisterPage extends StatelessWidget{
         //String otp = OTPService.generateOTP();
         await otpService.sendOTP(myAuth,_emailController.text,_nameController.text);
         //emailotp.sendOTP();
-        showDialog(
+
+        // Show OTP dialog
+        bool otpVerified = false;
+        await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) {
@@ -66,17 +69,15 @@ class RegisterPage extends StatelessWidget{
               content: TextField(
                 controller: _otpController,
                 decoration: const InputDecoration(labelText: 'OTP'),
-
               ),
               actions: [
                 TextButton(
-                  onPressed: ()  async {
+                  onPressed: () async {
                     final value = _otpController.text;
                     if (EmailOTP.verifyOTP(otp: value)) {
-                    print("OTP is verified");
-                    auth.signUpWithEmailPassword(_emailController.text, _pwController.text, value);
-                    Navigator.pop(context);
-                    } else{
+                      otpVerified = true;
+                      Navigator.pop(context); // Close the OTP dialog
+                    } else {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
@@ -92,9 +93,6 @@ class RegisterPage extends StatelessWidget{
                         ),
                       );
                     }
-                    Future.delayed(const Duration(seconds: 1), () {
-                      Navigator.pop(context);
-                    });
                   },
                   child: const Text('Verify'),
                 ),
@@ -102,7 +100,48 @@ class RegisterPage extends StatelessWidget{
             );
           },
         );
-      } catch(e) {
+
+        if (otpVerified) {
+          try {
+            await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, _otpController.text);
+          } on Exception catch (e) {
+            if (e.toString().contains('email-already-in-use')) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Email already in use"),
+                  content: const Text("This email is already registered. Please login instead."),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Dismiss the dialog
+                        onTap?.call(); // Navigate to login page
+                      },
+                      child: const Text('Login'),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Registration Error"),
+                  content: Text(e.toString()),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Ok'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+        }
+      } catch (e) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(

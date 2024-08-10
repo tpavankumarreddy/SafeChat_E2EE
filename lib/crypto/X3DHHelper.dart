@@ -17,11 +17,11 @@ class X3DHHelper {
     return value;
   }
 
-  Future<Map<String, dynamic>> performX3DHKeyAgreement(String localUid, String remoteEmail, int indexOTPK) async {
-    final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate');
-    final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic');
-    final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate');
-    final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic');
+  Future<Map<String, dynamic>> performX3DHKeyAgreement(String localEmail, String remoteEmail, int indexOTPK) async {
+    final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate$localEmail');
+    final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic$localEmail');
+    final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate$localEmail');
+    final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic$localEmail');
 
     final localIdentityKeyPair = SimpleKeyPairData(
       base64Decode(localIdentityKeyPairPrivate),

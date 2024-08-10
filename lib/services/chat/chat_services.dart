@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../../models/message.dart';
 
 class ChatService {
@@ -10,9 +9,7 @@ class ChatService {
   Stream<List<Map<String,dynamic>>> getUsersStream() {
     return _firestore.collection("user's").snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        // go through each individual user
         final user = doc.data();
-        //return user
         return user;
       }).toList();
     });
@@ -22,6 +19,8 @@ class ChatService {
     final String currentUserID = _auth.currentUser!.uid;
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
+
+    print('[ChatService - sendMessage] Line 19: sendMessage called with receiverID: $receiverID, message: $message, senderID: $currentUserID');
 
     Message newMessage = Message(
       senderID: currentUserID,
@@ -35,6 +34,9 @@ class ChatService {
     ids.sort();
     String chatRoomID = ids.join('_');
 
+    print('[ChatService - sendMessage] Line 29: Adding message to chatRoomID: $chatRoomID');
+    print('[ChatService - sendMessage] Line 30: Message data: ${newMessage.toMap()}');
+
     await _firestore.collection("chat_rooms").doc(chatRoomID).collection("messages").add(newMessage.toMap());
   }
 
@@ -42,6 +44,8 @@ class ChatService {
     List<String> ids = [userID, otherUserID];
     ids.sort();
     String chatRoomID = ids.join('_');
+
+    print('[ChatService - getMessages] Line 37: Fetching messages for chatRoomID: $chatRoomID');
 
     return _firestore
         .collection("chat_rooms")

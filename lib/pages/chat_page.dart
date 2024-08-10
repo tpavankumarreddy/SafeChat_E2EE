@@ -13,7 +13,6 @@ class ChatPage extends StatelessWidget {
   final String receiverID;
   final SecretKey secretKey;
 
-  // Removed `const` keyword as the constructor cannot be `const`
   ChatPage({
     super.key,
     required this.receiverEmail,
@@ -21,25 +20,24 @@ class ChatPage extends StatelessWidget {
     required this.secretKey,
   });
 
-  // Text controller
   final TextEditingController _messageController = TextEditingController();
-
-  // Chat & Auth services
   final ChatService _chatService = ChatService();
   final AuthService _authService = AuthService();
-
-  // Encryption helper
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
-  // Send Message
   Future<void> sendMessage() async {
+    print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
+
     if (_messageController.text.isNotEmpty) {
       final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, secretKey);
+      print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
+
       await _chatService.sendMessage(receiverID, jsonEncode({
-        'cipherText': base64Encode(encryptedData['cipherText']), // Encode to Base64
-        'nonce': base64Encode(encryptedData['nonce']) // Encode to Base64
+        'cipherText': base64Encode(encryptedData['cipherText']),
+        'nonce': base64Encode(encryptedData['nonce'])
       }));
       _messageController.clear();
+      print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
     }
   }
 
@@ -49,25 +47,21 @@ class ChatPage extends StatelessWidget {
       appBar: AppBar(title: Text(receiverEmail)),
       body: Column(
         children: [
-          // Display all messages
           Expanded(
             child: _buildMessageList(),
           ),
-          // User input
           _buildUserInput(),
         ],
       ),
     );
   }
 
-  // Build message list
   Widget _buildMessageList() {
     String senderID = _authService.getCurrentUser()!.uid;
     return StreamBuilder<QuerySnapshot>(
       stream: _chatService.getMessages(receiverID, senderID),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          print("Stream Error: ${snapshot.error}");
           return Center(child: Text("Error: ${snapshot.error}"));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -79,6 +73,7 @@ class ChatPage extends StatelessWidget {
         return ListView(
           reverse: true,
           children: snapshot.data!.docs.map((doc) {
+            print('[ChatPage - _buildMessageList] Line 50: Document data: ${doc.data()}');
             return _buildMessageItem(doc);
           }).toList(),
         );
@@ -86,7 +81,6 @@ class ChatPage extends StatelessWidget {
     );
   }
 
-  // Build message item
   Widget _buildMessageItem(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
 
@@ -94,13 +88,11 @@ class ChatPage extends StatelessWidget {
       return const Text("Error loading message");
     }
 
-    print("Message data from Firestore: $data");
+    print('[ChatPage - _buildMessageItem] Line 64: Message data for decryption: $data');
 
     bool isCurrentUser = data['senderID'] == _authService.getCurrentUser()!.uid;
-
     var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
 
-    // Safely handle null and type casting issues
     final messageJson = data['message'];
     Map<String, dynamic> messageData;
     try {
@@ -144,7 +136,7 @@ class ChatPage extends StatelessWidget {
           );
         }
 
-        print("Decrypted message: ${snapshot.data}");
+        print('[ChatPage - _buildMessageItem] Line 71: Decrypted message: ${snapshot.data}');
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
@@ -160,7 +152,6 @@ class ChatPage extends StatelessWidget {
     );
   }
 
-  // Build message input
   Widget _buildUserInput() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),

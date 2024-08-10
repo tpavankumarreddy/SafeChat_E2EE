@@ -61,24 +61,30 @@ class ChatPage extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: _chatService.getMessages(receiverID, senderID),
       builder: (context, snapshot) {
+        print('[ChatPage - _buildMessageList] StreamBuilder triggered');
+
         if (snapshot.hasError) {
+          print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           return Center(child: Text("Error: ${snapshot.error}"));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
+          print('[ChatPage - _buildMessageList] No messages');
           return Center(child: Text("No messages yet"));
         }
+        print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
         return ListView(
           reverse: true,
           children: snapshot.data!.docs.map((doc) {
-            print('[ChatPage - _buildMessageList] Line 50: Document data: ${doc.data()}');
+            print('[ChatPage - _buildMessageList] Document data: ${doc.data()}');
             return _buildMessageItem(doc);
           }).toList(),
         );
       },
     );
+
   }
 
   Widget _buildMessageItem(DocumentSnapshot doc) {

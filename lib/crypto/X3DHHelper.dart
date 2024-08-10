@@ -131,8 +131,8 @@ class X3DHHelper {
       List<SimpleKeyPairData> oneTimePreKeys = [];
 
       for (int i = 0; i < count; i++) {
-        String privateKeyKey = 'oneTimePreKeyPairPrivate$i';
-        String publicKeyKey = 'oneTimePreKeyPairPublic$i';
+        String privateKeyKey = 'oneTimePreKeyPairPrivate$localUid$i';
+        String publicKeyKey = 'oneTimePreKeyPairPublic$localUid$i';
 
         final privateKeyValue = await readFromSecureStoragee(privateKeyKey);
         final publicKeyValue = await readFromSecureStoragee(publicKeyKey);

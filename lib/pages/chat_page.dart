@@ -67,6 +67,7 @@ class ChatPage extends StatelessWidget {
       stream: _chatService.getMessages(receiverID, senderID),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          print("Stream Error: ${snapshot.error}");
           return Center(child: Text("Error: ${snapshot.error}"));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 
 class EncryptionHelper {
-  final _aes = AesCtr.with256bits(macAlgorithm: MacAlgorithm.empty);
+  final AesCtr _aes = AesCtr.with256bits(macAlgorithm: MacAlgorithm.empty);
 
   Future<Map<String, dynamic>> encryptMessage(String message, SecretKey secretKey) async {
     final messageBytes = Uint8List.fromList(utf8.encode(message));
@@ -16,23 +16,35 @@ class EncryptionHelper {
     );
 
     return {
-      'cipherText': encrypted.cipherText,
-      'nonce': nonce,
+      'cipherText': base64Encode(encrypted.cipherText),
+      'nonce': base64Encode(encrypted.nonce),
     };
   }
 
-  Future<String> decryptMessage(List<int> cipherText, List<int> nonce, SecretKey secretKey) async {
-    final encryptedData = SecretBox(
-      cipherText,
-      nonce: nonce,
-      mac: Mac.empty,
-    );
+  Future<String> decryptMessage(String cipherTextBase64, String nonceBase64, SecretKey secretKey) async {
+    try {
+      // Decode Base64 strings
+      final cipherText = base64Decode(cipherTextBase64);
+      final nonce = base64Decode(nonceBase64);
 
-    final decrypted = await _aes.decrypt(
-      encryptedData,
-      secretKey: secretKey,
-    );
+      // Create an empty MAC to satisfy the requirement of SecretBox
+      final mac = Mac.empty;
 
-    return utf8.decode(decrypted);
+      final encryptedData = SecretBox(
+        cipherText,
+        nonce: nonce,
+        mac: mac,
+      );
+
+      final decrypted = await _aes.decrypt(
+        encryptedData,
+        secretKey: secretKey,
+      );
+
+      return utf8.decode(decrypted);
+    } catch (e) {
+      print('Error during decryption: $e');
+      throw e;
+    }
   }
 }

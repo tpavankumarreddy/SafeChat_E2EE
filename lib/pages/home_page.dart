@@ -135,9 +135,9 @@ class _HomePageState extends State<HomePage> {
 
               await handshakeHandler.handleReceivedHandshakeMessage('${getCurrentUser()!.email}', userData["email"], handshakeMessage);
               print('Secret key generated and stored for ${userData["email"]}.');
-
               // Read and decode the generated secret key
               final storedSecretKeyString = await _secureStorage.read(key: 'shared_Secret_With_${userData["email"]}');
+              print(storedSecretKeyString);
               if (storedSecretKeyString != null) {
                 final secretKeyBytes = base64Decode(storedSecretKeyString);
                 generatedSecretKey = SecretKey(secretKeyBytes);

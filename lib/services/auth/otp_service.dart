@@ -48,9 +48,7 @@ class OTPService {
               padding: 30px;
               background-color: #fff; /* White background for content */
               border-radius: 5px; /* Rounded corners */
-              background-image: url('https://theintercept.com/wp-content/uploads/2016/08/Pokemon_theintercept_01.gif?fit=1439%2C720'); /* Replace with your image URL */
-              background-size: cover; /* Ensure the background image covers the entire container */
-              background-position: center; /* Center the background image */
+              
             }
             .header {
               text-align: center;

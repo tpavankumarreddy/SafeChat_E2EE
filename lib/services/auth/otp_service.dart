@@ -77,7 +77,9 @@ class OTPService {
         <body>
           <div class="container">
             <div class="header">
-              <img src="https://i.ibb.co/w6gjVK6/safechat.png" alt="Company Logo" class="logo">
+                <a href="https://github.com/tpavankumarreddy/SafeChat_E2EE">  
+                <img src="https://github.com/tpavankumarreddy/SafeChat_E2EE/blob/master/assets/banners/banner_SafeChat.png" 
+                alt="Safe Chat Banner" class="banner">  </a>
             </div>
             <div class="content">
               <h2>Hey $name,</h2>

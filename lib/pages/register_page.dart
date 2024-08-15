@@ -27,7 +27,6 @@ class PasswordStrength {
         return "Moderate";
       case 4:
         return "Strong";
-
       case 5:
         return "Very Strong";
       default:
@@ -234,6 +233,7 @@ class RegisterPage extends StatelessWidget {
               text: "Register",
               onTap: () => register(context),
             ),
+
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

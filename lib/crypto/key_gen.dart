@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:emailchat/crypto/pre_key_validation.dart';
+import 'package:SafeChat/crypto/pre_key_validation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
   import 'dart:convert';
@@ -16,9 +16,6 @@ class KeyGenerator {
 
     // final ed25519 = crypto.Ed25519();
     final pkval = PreKeyValidation();
-
-
-
 
     final iSeed = utf8.encode('$uid++$email++$otp');
     final List<int> finalISeed = (await crypto.Sha256().hash(iSeed)).bytes;
@@ -57,18 +54,18 @@ class KeyGenerator {
 
 
     await _secureStorage.write(
-        key: 'identityKeyPairPrivate', value: base64Encode(await identityKeyPair.extractPrivateKeyBytes()));
+        key: 'identityKeyPairPrivate$email', value: base64Encode(await identityKeyPair.extractPrivateKeyBytes()));
     await _secureStorage.write(
-        key: 'identityKeyPairPublic', value: base64Encode(identityKeyPublic.bytes));
+        key: 'identityKeyPairPublic$email', value: base64Encode(identityKeyPublic.bytes));
     await _secureStorage.write(
-        key: 'preKeyPairPrivate', value: base64Encode(await preKeyPair.extractPrivateKeyBytes()));
+        key: 'preKeyPairPrivate$email', value: base64Encode(await preKeyPair.extractPrivateKeyBytes()));
     await _secureStorage.write(
-        key: 'preKeyPairPublic', value: base64Encode(preKeyPublic.bytes));
+        key: 'preKeyPairPublic$email', value: base64Encode(preKeyPublic.bytes));
     for (int i = 0; i < oneTimePreKeys.length; i++) {
       await _secureStorage.write(
-          key: 'oneTimePreKeyPairPrivate$i', value: base64Encode(await oneTimePreKeys[i].extractPrivateKeyBytes()));
+          key: 'oneTimePreKeyPairPrivate$email$i', value: base64Encode(await oneTimePreKeys[i].extractPrivateKeyBytes()));
       await _secureStorage.write(
-          key: 'oneTimePreKeyPairPublic$i', value: base64Encode(oneTimePreKeysPublic[i].bytes));
+          key: 'oneTimePreKeyPairPublic$email$i', value: base64Encode(oneTimePreKeysPublic[i].bytes));
     }
 
     //await _secureStorage.write(key: 'signedPreKey signature', value: base64Encode(signature))

@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:emailchat/data/database_helper.dart';
+import 'package:SafeChat/data/database_helper.dart';
 import '../services/auth/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {

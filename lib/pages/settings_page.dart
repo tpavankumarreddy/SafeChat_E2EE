@@ -1,4 +1,4 @@
-import 'package:emailchat/pages/themes_data.dart';
+import 'package:SafeChat/pages/themes_data.dart';
 import 'package:flutter/material.dart';
 import 'privacy_page.dart';  // Import the PrivacyPage
 import 'package:local_auth/local_auth.dart';

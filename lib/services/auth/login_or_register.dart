@@ -1,5 +1,5 @@
-import 'package:emailchat/pages/login_page.dart';
-import 'package:emailchat/pages/register_page.dart';
+import 'package:SafeChat/pages/login_page.dart';
+import 'package:SafeChat/pages/register_page.dart';
 import 'package:flutter/material.dart';
 
 class LoginOrRegister extends StatefulWidget {

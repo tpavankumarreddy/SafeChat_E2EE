@@ -28,46 +28,72 @@ class OTPService {
 
       EmailOTP.setTemplate(
           template: '''
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>OTP Email</title>
-        <style>
-          /* CSS styling */
-          p {
-          font-size: 16px; /* Specify the desired font size in pixels (px) */
-          }
-        </style>
-      </head>
-      <body>
-        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-            <!-- Image Section -->
-            <div style="text-align: center;">
-                <img src="https://i.ibb.co/w6gjVK6/safechat.png" alt="Company Logo" style="max-width: 90%;">
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Your {{appName}} Access Code</title>
+          <style>
+            body {
+              font-family: sans-serif; /* Set a modern font */
+              margin: 0;
+              padding: 0;
+              background-color: #f5f5f5; /* Light gray background */
+              color: #FFFFFF;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 30px;
+              background-color: #fff; /* White background for content */
+              border-radius: 5px; /* Rounded corners */
+              
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .logo {
+              max-width: 150px; /* Adjust logo size as needed */
+            }
+            .content {
+              line-height: 1.5; /* Increase line spacing for readability */
+            }
+            .otp {
+              font-size: 24px;
+              font-weight: bold;
+              text-align: center;
+              margin: 10px 0; /* Spacing above and below */
+            }
+            .footer {
+              text-align: center;
+              margin-top: 20px;
+              color: #888; /* Light gray text */
+            }
+        
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <img src="https://i.ibb.co/w6gjVK6/safechat.png" alt="Company Logo" class="logo">
             </div>
+            <div class="content">
+              <h2>Hey $name,</h2>
+              <p>Thanks for choosing {{appName}}! We're excited to have you on board.</p>
+              <p>Here's your one-time access code (OTP) to verify your account:</p>
+              <h1 class="otp">{{otp}}</h1>
+              <p>Use this code to complete your registration and unlock the awesome features of {{appName}}.</p>
+            </div>
+            <div class="footer">
+              <p>This email was sent from {{appName}}. If you didn't request this, just ignore it.</p>
+            </div>
+          </div>
+        </body>
+        </html>
 
-            <!-- OTP Section -->
-            <div style="margin-top: 20px;">
-                <h1>Hello, $name</h1>
-                
-                <h2>Thanks for choosing </h2>
-                <h2>{{appName}}</h2>
-                <h2>, where your <b>privacy</b> matters!</h2>
-                <p>Your One-Time Password (OTP) for verification is:</p>
-                <h1 style="text-align: center;"><strong>{{otp}}</strong></h1>
-                <p>Please use this OTP to proceed with your registration.</p>
-            </div>
 
-            <!-- Footer Section -->
-            <div style="margin-top: 20px; text-align: center;">
-                <p>This email was sent from {{app_name}}. If you did not request this OTP, please ignore this email.</p>
-            </div>
-        </div>
-      </body>
-      </html>
 
       ''',
       );

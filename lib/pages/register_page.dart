@@ -1,39 +1,13 @@
-import 'package:emailchat/services/auth/auth_service.dart';
-import 'package:emailchat/components/my_button.dart';
-import 'package:emailchat/components/my_textfield.dart';
+import 'dart:async';
+import 'package:email_validator/email_validator.dart';
+import 'package:SafeChat/services/auth/auth_service.dart';
+import 'package:SafeChat/components/my_button.dart';
+import 'package:SafeChat/components/my_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:email_otp/email_otp.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../services/auth/otp_service.dart';
-
-class PasswordStrength {
-  static String checkPasswordStrength(String password) {
-    int score = 0;
-
-    if (password.length >= 8) score++;
-    if (password.contains(RegExp(r'[a-z]')) && password.contains(RegExp(r'[A-Z]'))) score++;
-    if (password.contains(RegExp(r'\d'))) score++;
-    if (password.contains(RegExp(r'[!@#\$&*~%^(){};:<>?/|,.\[\]_=+\\-]'))) score++;
-    if (password.length > 12) score++;
-
-    switch (score) {
-      case 0:
-      case 1:
-        return "Very Weak";
-      case 2:
-        return "Weak";
-      case 3:
-        return "Moderate";
-      case 4:
-        return "Strong";
-      case 5:
-        return "Very Strong";
-      default:
-        return "Invalid";
-    }
-  }
-}
+import 'login_page.dart';
+import 'otp_page.dart';
 
 class RegisterPage extends StatelessWidget {
   EmailOTP myAuth = EmailOTP();
@@ -42,16 +16,37 @@ class RegisterPage extends StatelessWidget {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _pwController = TextEditingController();
   final TextEditingController _confirmPwController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
 
   final void Function()? onTap;
 
   RegisterPage({super.key, required this.onTap});
 
-  // Register method
+  // Timer related fields
+  Timer? _timer;
+  int _remainingTime = 90;
+  bool _showResendButton = false;
+
+  Future<void> _startTimer(VoidCallback onResendAvailable) async {
+    _remainingTime = 90; // reset timer to 90 sec
+    _showResendButton = false;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingTime > 0) {
+        _remainingTime--;
+      } else {
+        _showResendButton = true;
+        timer.cancel();
+        onResendAvailable();
+      }
+    });
+  }
+
+  Future<void> _resendOTP() async {
+    _startTimer(() {});
+    await OTPService().sendOTP(myAuth, _emailController.text, _nameController.text);
+  }
+
   Future<void> register(BuildContext context) async {
-    final auth = AuthService();
-    final otpService = OTPService();
 
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -74,13 +69,11 @@ class RegisterPage extends StatelessWidget {
       return;
     }
 
-    // Check password strength
-    String passwordStrength = PasswordStrength.checkPasswordStrength(_pwController.text);
-    if (passwordStrength == "Very Weak" || passwordStrength == "Weak") {
+    if (!EmailValidator.validate(_emailController.text)) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text("Password is too weak. Strength: $passwordStrength", style: const TextStyle(fontSize: 18)),
+          title: const Text("Enter a valid email address.", style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
               onPressed: () {
@@ -95,31 +88,69 @@ class RegisterPage extends StatelessWidget {
     }
 
     if (_pwController.text == _confirmPwController.text && _pwController.text.length >= 6) {
-      try {
-        await otpService.sendOTP(myAuth, _emailController.text, _nameController.text);
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Enter OTP'),
-              content: TextField(
-                controller: _otpController,
-                decoration: const InputDecoration(labelText: 'OTP'),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    final otp = _otpController.text;
-                    if (await EmailOTP.verifyOTP(otp: otp)) {
-                      print("OTP is verified");
-                      await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, otp);
-                      Navigator.pop(context);
-                    } else {
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OTPPage(
+            email: _emailController.text,
+            username: _nameController.text,
+            onOTPVerified: () async {
+              final auth = AuthService();
+              try {
+                final returnedOTP = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OTPPage(
+                      email: _emailController.text,
+                      username: _nameController.text,
+                      onOTPVerified: () {},
+                    ),
+                  ),
+                );
+
+                if (returnedOTP != null) {
+                  try {
+                  await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, returnedOTP);
+
+                  Navigator.pop(context); // Navigate back to RegisterPage
+                  showDialog(
+                    context: context,
+                    builder: (context) => const SnackBar(
+                      content: Text("Registration Successful! 🥳. Your account has been created."),
+                  ),
+                );
+                } on Exception catch (e) {
+                    if (e.toString().contains('email-already-in-use')) {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text("Invalid OTP", style: TextStyle(fontSize: 18)),
+                          title: const Text("Email already in use"),
+                          content: const Text("This email is already registered. Please login instead."),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context); // Dismiss the dialog
+                                onTap?.call(); // Navigate to login page
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LoginPage(onTap: () {  },),
+                                  ),
+                                );
+                              },
+                              child: const Text('Login'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    else {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text("Registration Error"),
+                          content: Text(e.toString()),
                           actions: [
                             TextButton(
                               onPressed: () {
@@ -131,21 +162,21 @@ class RegisterPage extends StatelessWidget {
                         ),
                       );
                     }
-                  },
-                  child: const Text('Verify'),
-                ),
-              ],
-            );
-          },
-        );
-      } catch (e) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(e.toString()),
+                  }
+              }
+              }catch (e) {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(e.toString()),
+                  ),
+                );
+              }
+            },
           ),
-        );
-      }
+        ),
+      );
+
     } else if (_pwController.text != _confirmPwController.text) {
       showDialog(
         context: context,
@@ -178,10 +209,6 @@ class RegisterPage extends StatelessWidget {
       );
     }
   }
-
-  // Google Sign-In method (remains unchanged)
-
-  // Helper methods (unchanged)
 
   @override
   Widget build(BuildContext context) {
@@ -230,10 +257,9 @@ class RegisterPage extends StatelessWidget {
             ),
             const SizedBox(height: 25),
             MyButton(
-              text: "Register",
+              text: "R E G I S T E R",
               onTap: () => register(context),
             ),
-
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

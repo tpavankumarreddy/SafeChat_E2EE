@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DatabaseHelper {
   static Database? _database;
@@ -14,7 +14,10 @@ class DatabaseHelper {
   // Singleton pattern: Private constructor
   DatabaseHelper._();
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   static final DatabaseHelper instance = DatabaseHelper._();
+
+
 
   // Getter for the database instance
   Future<Database> get database async {
@@ -27,7 +30,8 @@ class DatabaseHelper {
 
   // Initialize database
   Future<Database> _initDatabase() async {
-    final path = join(await getDatabasesPath(), 'user_database.db');
+    final String currentUserID = _auth.currentUser!.uid;
+    final path = join(await getDatabasesPath(), 'user_database$currentUserID.db');
     return await openDatabase(
       path,
       version: 1,

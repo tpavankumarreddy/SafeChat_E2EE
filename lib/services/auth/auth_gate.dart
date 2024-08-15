@@ -1,4 +1,4 @@
-import 'package:emailchat/services/auth/login_or_register.dart';
+import 'package:SafeChat/services/auth/login_or_register.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 

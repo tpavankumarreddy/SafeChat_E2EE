@@ -156,8 +156,8 @@ class _ChatPageState extends State<ChatPage> {
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           print('[ChatPage - _buildMessageItem] Waiting for decryption...');
-          return Padding(
-            padding: const EdgeInsets.all(5.0),
+          return const Padding(
+            padding: EdgeInsets.all(5.0),
             child: CircularProgressIndicator(),
           );
         }

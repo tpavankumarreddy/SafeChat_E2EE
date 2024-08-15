@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:emailchat/components/chat_bubble.dart';
-import 'package:emailchat/components/my_textfield.dart';
-import 'package:emailchat/services/auth/auth_service.dart';
-import 'package:emailchat/services/chat/chat_services.dart';
+import 'package:SafeChat/components/chat_bubble.dart';
+import 'package:SafeChat/components/my_textfield.dart';
+import 'package:SafeChat/services/auth/auth_service.dart';
+import 'package:SafeChat/services/chat/chat_services.dart';
 import 'package:flutter/material.dart';
-import 'package:emailchat/crypto/Encryption_helper.dart';
+import 'package:SafeChat/crypto/Encryption_helper.dart';
 import 'package:cryptography/cryptography.dart';
 
 class ChatPage extends StatefulWidget {

@@ -68,6 +68,7 @@
                       try {
                         if (response.data['exists']) {
                           print("Email exists in Firestore.");
+
                           setState(() {
                             _emails.add(email);// Add the entered email to the list
                             _saveEmailToDatabase(email);

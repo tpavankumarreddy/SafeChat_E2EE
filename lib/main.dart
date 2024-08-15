@@ -1,10 +1,10 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:emailchat/firebase_options.dart';
+import 'package:SafeChat/firebase_options.dart';
 import 'package:provider/provider.dart';
-import 'package:emailchat/services/auth/auth_gate.dart';
-import 'package:emailchat/themes/theme_provider.dart';
+import 'package:SafeChat/services/auth/auth_gate.dart';
+import 'package:SafeChat/themes/theme_provider.dart';
 import 'package:flutter/scheduler.dart';
 
 void main() async {

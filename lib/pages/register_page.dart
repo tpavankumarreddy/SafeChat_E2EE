@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:email_validator/email_validator.dart';
-import 'package:emailchat/services/auth/auth_service.dart';
-import 'package:emailchat/components/my_button.dart';
-import 'package:emailchat/components/my_textfield.dart';
+import 'package:SafeChat/services/auth/auth_service.dart';
+import 'package:SafeChat/components/my_button.dart';
+import 'package:SafeChat/components/my_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:email_otp/email_otp.dart';
 import '../services/auth/otp_service.dart';
+import 'login_page.dart';
 import 'otp_page.dart';
 
 class RegisterPage extends StatelessWidget {
@@ -131,6 +132,12 @@ class RegisterPage extends StatelessWidget {
                               onPressed: () {
                                 Navigator.pop(context); // Dismiss the dialog
                                 onTap?.call(); // Navigate to login page
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LoginPage(onTap: () {  },),
+                                  ),
+                                );
                               },
                               child: const Text('Login'),
                             ),

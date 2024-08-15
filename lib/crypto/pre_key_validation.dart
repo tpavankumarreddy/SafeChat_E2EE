@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
-import 'package:emailchat/services/auth/auth_service.dart';
+import 'package:SafeChat/services/auth/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:x25519/x25519.dart';
 //import 'package:flutter_secure_storage/flutter_secure_storage.dart';

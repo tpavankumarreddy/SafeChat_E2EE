@@ -115,7 +115,7 @@ class _OTPPageState extends State<OTPPage> {
               }),
             ),
             SizedBox(height: 20),
-            Text('OTP expires in $_remainingTime seconds'),
+            Text('Resend OTP in $_remainingTime seconds'),
             SizedBox(height: 20),
             if (_showResendButton)
               TextButton(
@@ -129,7 +129,7 @@ class _OTPPageState extends State<OTPPage> {
                 },
                 child: Text('Resend OTP'),
               ),
-            TextButton(
+            ElevatedButton(
               onPressed: _verifyOTP,
               child: Text('Verify OTP'),
             ),

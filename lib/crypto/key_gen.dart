@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:emailchat/crypto/pre_key_validation.dart';
+import 'package:SafeChat/crypto/pre_key_validation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
   import 'dart:convert';

@@ -1,4 +1,4 @@
-import 'package:emailchat/pages/profile_page.dart';
+import 'package:SafeChat/pages/profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import  'package:flutter/material.dart';
 import '../data/database_helper.dart';

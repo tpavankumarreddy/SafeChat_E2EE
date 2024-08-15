@@ -101,3 +101,62 @@ exports.checkEmailExists = functions.https.onCall(async (data, context) => {
         "Unable to check email existence");
   }
 });
+
+exports.initiateX3DH = functions.https.onCall(async (data, context) => {
+  const email = data.email;
+  const aliceIdentityKey = data.aliceIdentityKey;
+  const alicePreKey = data.alicePreKey;
+
+  const i = Math.floor(Math.random() * 100);
+
+  const bobIdentityKey = await
+  admin.firestore().collection("user's").doc(email).get('identityKey');
+  const bobPreKey = await
+  admin.firestore().collection("user's").doc(email).get('preKey');
+  const bobOneTimePreKey =await
+  admin.firestore().collection("user's").doc(email).get(`oneTimePreKeys.${i}`);
+
+  const encryptedPreKey = await encrypt(bobPreKey, alicePreKey);
+  const encryptedOneTimePreKey = await encrypt(bobOneTimePreKey, alicePreKey);
+
+  await admin.firestore().collection('pendingMessages').doc(email).set({
+    aliceIdentityKey: aliceIdentityKey,
+    alicePreKey: alicePreKey,
+    index: i,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    bobIdentityKey: bobIdentityKey,
+    encryptedPreKey: encryptedPreKey,
+    encryptedOneTimePreKey: encryptedOneTimePreKey,
+    index: i
+  };
+});
+
+async function encrypt(data, key) {
+  // Encryption logic here
+  return encryptedData;
+}
+
+exports.retrieveAliceKeys = functions.https.onCall(async (data, context) => {
+  const email = data.email;
+
+  const doc = await
+  admin.firestore().collection('pendingMessages').doc(email).get();
+
+  if (doc.exists) {
+    const aliceData = doc.data();
+
+    return {
+      aliceIdentityKey: aliceData.aliceIdentityKey,
+      alicePreKey: aliceData.alicePreKey,
+      index: aliceData.index,
+    };
+  } else {
+    throw new functions.https.HttpsError('not-found',
+    'No pending messages found for this user.');
+  }
+});
+
+

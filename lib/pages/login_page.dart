@@ -1,6 +1,6 @@
-import 'package:emailchat/services/auth/auth_service.dart';
-import 'package:emailchat/components/my_button.dart';
-import 'package:emailchat/components/my_textfield.dart';
+import 'package:SafeChat/services/auth/auth_service.dart';
+import 'package:SafeChat/components/my_button.dart';
+import 'package:SafeChat/components/my_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';

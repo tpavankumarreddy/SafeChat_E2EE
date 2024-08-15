@@ -3,31 +3,56 @@ import 'package:emailchat/components/my_button.dart';
 import 'package:emailchat/components/my_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:email_otp/email_otp.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../services/auth/otp_service.dart';
 
-class RegisterPage extends StatelessWidget{
+class PasswordStrength {
+  static String checkPasswordStrength(String password) {
+    int score = 0;
 
+    if (password.length >= 8) score++;
+    if (password.contains(RegExp(r'[a-z]')) && password.contains(RegExp(r'[A-Z]'))) score++;
+    if (password.contains(RegExp(r'\d'))) score++;
+    if (password.contains(RegExp(r'[!@#\$&*~%^(){};:<>?/|,.\[\]_=+\\-]'))) score++;
+    if (password.length > 12) score++;
+
+    switch (score) {
+      case 0:
+      case 1:
+        return "Very Weak";
+      case 2:
+        return "Weak";
+      case 3:
+        return "Moderate";
+      case 4:
+        return "Strong";
+
+      case 5:
+        return "Very Strong";
+      default:
+        return "Invalid";
+    }
+  }
+}
+
+class RegisterPage extends StatelessWidget {
   EmailOTP myAuth = EmailOTP();
 
-  final TextEditingController _nameController=TextEditingController();
-  final TextEditingController _emailController=TextEditingController();
-  final TextEditingController _pwController=TextEditingController();
-  final TextEditingController _confirmPwController=TextEditingController();
-  final TextEditingController _otpController=TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _pwController = TextEditingController();
+  final TextEditingController _confirmPwController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
 
   final void Function()? onTap;
 
+  RegisterPage({super.key, required this.onTap});
 
-
-  RegisterPage({super.key,required this.onTap});
-
-  //register method
-
+  // Register method
   Future<void> register(BuildContext context) async {
-    // get authservice
-    final auth=AuthService();
-    final otpService = OTPService(); // Instantiate OTPService
-    final emailotp = EmailOTP();
+    final auth = AuthService();
+    final otpService = OTPService();
 
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -50,13 +75,29 @@ class RegisterPage extends StatelessWidget{
       return;
     }
 
+    // Check password strength
+    String passwordStrength = PasswordStrength.checkPasswordStrength(_pwController.text);
+    if (passwordStrength == "Very Weak" || passwordStrength == "Weak") {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Password is too weak. Strength: $passwordStrength", style: const TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
-    //passwordds match means create user
-    if (_pwController.text==_confirmPwController.text&&  _pwController.text.length>=6) {
-      try{
-        //String otp = OTPService.generateOTP();
-        await otpService.sendOTP(myAuth,_emailController.text,_nameController.text);
-        //emailotp.sendOTP();
+    if (_pwController.text == _confirmPwController.text && _pwController.text.length >= 6) {
+      try {
+        await otpService.sendOTP(myAuth, _emailController.text, _nameController.text);
         showDialog(
           context: context,
           barrierDismissible: false,
@@ -66,21 +107,20 @@ class RegisterPage extends StatelessWidget{
               content: TextField(
                 controller: _otpController,
                 decoration: const InputDecoration(labelText: 'OTP'),
-
               ),
               actions: [
                 TextButton(
-                  onPressed: ()  async {
-                    final value = _otpController.text;
-                    if (EmailOTP.verifyOTP(otp: value)) {
-                    print("OTP is verified");
-                    auth.signUpWithEmailPassword(_emailController.text, _pwController.text, value);
-                    Navigator.pop(context);
-                    } else{
+                  onPressed: () async {
+                    final otp = _otpController.text;
+                    if (await EmailOTP.verifyOTP(otp: otp)) {
+                      print("OTP is verified");
+                      await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, otp);
+                      Navigator.pop(context);
+                    } else {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
-                          title: const Text("Invalid OTP.", style: TextStyle(fontSize: 18)),
+                          title: const Text("Invalid OTP", style: TextStyle(fontSize: 18)),
                           actions: [
                             TextButton(
                               onPressed: () {
@@ -92,9 +132,6 @@ class RegisterPage extends StatelessWidget{
                         ),
                       );
                     }
-                    Future.delayed(const Duration(seconds: 1), () {
-                      Navigator.pop(context);
-                    });
                   },
                   child: const Text('Verify'),
                 ),
@@ -102,7 +139,7 @@ class RegisterPage extends StatelessWidget{
             );
           },
         );
-      } catch(e) {
+      } catch (e) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -110,16 +147,29 @@ class RegisterPage extends StatelessWidget{
           ),
         );
       }
-
-    }
-    else if(_pwController.text!=_confirmPwController.text) {
+    } else if (_pwController.text != _confirmPwController.text) {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("Passwords don't match", style: TextStyle(fontSize: 18)),
           actions: [
             TextButton(
-              onPressed: ()  {
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Password length should be at least 6.", style: TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
                 Navigator.pop(context);
               },
               child: const Text('Ok'),
@@ -128,97 +178,63 @@ class RegisterPage extends StatelessWidget{
         ),
       );
     }
-    //passwords not match means show error
-    else{
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Password length should be at least 6.", style: TextStyle(fontSize: 18)),
-            actions: [
-              TextButton(
-                onPressed: ()  {
-                  Navigator.pop(context);
-                },
-                child: const Text('Ok'),
-              ),
-            ],
-        ),
-
-      );
-    }
-
   }
 
+  // Google Sign-In method (remains unchanged)
+
+  // Helper methods (unchanged)
 
   @override
-  Widget build(BuildContext context){
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            //logo
-            Icon(Icons.message,
-              size : 60,
+            Icon(
+              Icons.message,
+              size: 60,
               color: Theme.of(context).colorScheme.primary,
             ),
-
             const SizedBox(height: 50),
-            //welcome back
-            Text("Hello, let's get you registered.",
+            Text(
+              "Hello, let's get you registered.",
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
-                fontSize:18,
+                fontSize: 18,
               ),
             ),
-
             const SizedBox(height: 50),
-
             MyTextField(
               hintText: "Name",
               obscuredText: false,
               controller: _nameController,
             ),
-
             const SizedBox(height: 10),
-
-            //email
-
             MyTextField(
               hintText: "Email",
               obscuredText: false,
               controller: _emailController,
             ),
-
             const SizedBox(height: 10),
-            //pw
-
             MyTextField(
               hintText: "Password",
               obscuredText: true,
               controller: _pwController,
             ),
-
             const SizedBox(height: 10),
-
             MyTextField(
               hintText: "Confirm Password",
               obscuredText: true,
               controller: _confirmPwController,
             ),
-
             const SizedBox(height: 25),
-
-            //login
-
             MyButton(
               text: "Register",
               onTap: () => register(context),
             ),
-
             const SizedBox(height: 20),
-            //register
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

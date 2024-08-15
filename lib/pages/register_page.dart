@@ -113,13 +113,12 @@ class RegisterPage extends StatelessWidget {
                   try {
                   await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, returnedOTP);
 
-                  Navigator.pop(context); // Navigate back to RegisterPage
-                  showDialog(
-                    context: context,
-                    builder: (context) => const SnackBar(
-                      content: Text("Registration Successful! 🥳. Your account has been created."),
-                  ),
-                );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Registration Successful! 🥳 Your account has been created."),
+                    ),
+                  );
+
                 } on Exception catch (e) {
                     if (e.toString().contains('email-already-in-use')) {
                       showDialog(

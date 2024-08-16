@@ -31,12 +31,14 @@ class _ChatPageState extends State<ChatPage> {
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
   late final Stream<QuerySnapshot> _messageStream;
+  List<Map<String, dynamic>> _decryptedMessages = [];
 
   @override
   void initState() {
     super.initState();
     String senderID = _authService.getCurrentUser()!.uid;
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
+    print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
   }
 
   Future<void> sendMessage() async {
@@ -55,6 +57,45 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  Future<void> _decryptMessages(List<DocumentSnapshot> docs) async {
+    List<Map<String, dynamic>> decryptedMessages = [];
+
+    for (var doc in docs) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
+      if (data.isEmpty) continue;
+
+      final messageJson = data['message'];
+      Map<String, dynamic> messageData;
+      try {
+        messageData = jsonDecode(messageJson);
+      } catch (e) {
+        print("Error decoding message content: $e");
+        continue;
+      }
+
+      final cipherTextBase64 = messageData['cipherText'] ?? '';
+      final nonceBase64 = messageData['nonce'] ?? '';
+
+      if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
+        print("Error: Message content is missing");
+        continue;
+      }
+
+      try {
+        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, widget.secretKey);
+        decryptedMessages.add({
+          'message': decryptedMessage,
+          'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
+        });
+      } catch (e) {
+        print("Error decrypting message: $e");
+      }
+    }
+
+    setState(() {
+      _decryptedMessages = decryptedMessages;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,12 +118,6 @@ class _ChatPageState extends State<ChatPage> {
       builder: (context, snapshot) {
         print('[ChatPage - _buildMessageList] StreamBuilder triggered');
 
-        // Print snapshot information for debugging
-        print('[ChatPage - _buildMessageList] Connection State: ${snapshot.connectionState}');
-        print('[ChatPage - _buildMessageList] Snapshot has Error: ${snapshot.hasError}');
-        print('[ChatPage - _buildMessageList] Snapshot Data: ${snapshot.data}');
-        print('[ChatPage - _buildMessageList] Snapshot Data Docs: ${snapshot.data?.docs}');
-
         if (snapshot.hasError) {
           print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           return Center(child: Text("Error: ${snapshot.error}"));
@@ -100,100 +135,34 @@ class _ChatPageState extends State<ChatPage> {
 
         print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
 
+        // Decrypt messages and update the state
+        _decryptMessages(snapshot.data!.docs);
+
         return ListView(
           reverse: true,
-          children: snapshot.data!.docs.map((doc) {
-            print('[ChatPage - _buildMessageList] Document data: ${doc.data()}');
-            return _buildMessageItem(doc);
+          children: _decryptedMessages.map((msg) {
+            return _buildMessageItem(msg);
           }).toList(),
         );
       },
     );
   }
 
-  Widget _buildMessageItem(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
-
-    print('[ChatPage - _buildMessageItem] Line 64: Message data for decryption: $data');
-
-    if (data.isEmpty) {
-      print('[ChatPage - _buildMessageItem] No data found');
-      return const Text("Error loading message");
-    }
-
-    bool isCurrentUser = data['senderID'] == _authService.getCurrentUser()!.uid;
+  Widget _buildMessageItem(Map<String, dynamic> message) {
+    bool isCurrentUser = message['isCurrentUser'];
     var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
+    final decryptedMessage = message['message'] as String;
 
-    final messageJson = data['message'];
-    Map<String, dynamic> messageData;
-    try {
-      messageData = jsonDecode(messageJson);
-      print('[ChatPage - _buildMessageItem] Message data JSON: $messageData');
-    } catch (e) {
-      print('[ChatPage - _buildMessageItem] Error decoding message JSON: $e');
-      return const Text("Error decoding message content");
-    }
-
-    final cipherTextBase64 = messageData['cipherText'] ?? '';
-    final nonceBase64 = messageData['nonce'] ?? '';
-
-    print('[ChatPage - _buildMessageItem] Cipher Text Base64: $cipherTextBase64');
-    print('[ChatPage - _buildMessageItem] Nonce Base64: $nonceBase64');
-
-    if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
-      print('[ChatPage - _buildMessageItem] Error: Message content is missing');
-      return const Text("Error: Message content is missing");
-    }
-
-    return FutureBuilder<String>(
-      future: _encryptionHelper.decryptMessage(
-        cipherTextBase64,
-        nonceBase64,
-        widget.secretKey,
-      ),
-      builder: (context, snapshot) {
-        print('[ChatPage - _buildMessageItem] FutureBuilder triggered');
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          print('[ChatPage - _buildMessageItem] Waiting for decryption...');
-          return Padding(
-            padding: const EdgeInsets.all(5.0),
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (snapshot.hasError) {
-          print('[ChatPage - _buildMessageItem] Error decrypting message: ${snapshot.error}');
-          return Padding(
-            padding: const EdgeInsets.all(5.0),
-            child: Text("Error decrypting message: ${snapshot.error}"),
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data == null) {
-          print('[ChatPage - _buildMessageItem] Decrypted message is null or empty');
-          return Padding(
-            padding: const EdgeInsets.all(5.0),
-            child: Text("Message is empty"),
-          );
-        }
-
-        print('[ChatPage - _buildMessageItem] Decrypted message: ${snapshot.data}');
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-          child: Container(
-            alignment: alignment,
-            child: ChatBubble(
-              message: snapshot.data!,
-              isCurrentUser: isCurrentUser,
-            ),
-          ),
-        );
-      },
-    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+    child: Container(
+    alignment: alignment,
+    child: ChatBubble(
+    message: decryptedMessage,
+    isCurrentUser: isCurrentUser,
+    ),
+    ));
   }
-
 
   Widget _buildUserInput() {
     return Padding(
@@ -216,4 +185,3 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
-

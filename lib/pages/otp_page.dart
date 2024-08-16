@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:email_otp/email_otp.dart';
+import '../services/auth/auth_service.dart';
 import '../services/auth/otp_service.dart';
+import 'login_page.dart';
 
 class OTPPage extends StatefulWidget {
   final String email;
   final String username;
-  final VoidCallback onOTPVerified;
+  final String password;
 
   OTPPage({
     required this.email,
     required this.username,
-    required this.onOTPVerified,
+    required this.password,
   });
 
   @override
@@ -43,13 +45,97 @@ class _OTPPageState extends State<OTPPage> {
 
   Future<void> _verifyOTP() async {
     final otp = _otpControllers.map((controller) => controller.text).join();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevents dialog from being dismissed
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 20),
+                Text('Please wait, your keys generating...'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     if (await EmailOTP.verifyOTP(otp: otp)) {
-      widget.onOTPVerified();
-      Navigator.pop(context, otp); // Navigate back to registration page
+      final auth = AuthService();
+      try {
+        await auth.signUpWithEmailPassword(widget.email, widget.password,otp);
+
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Registration Successful! 🥳 Your account has been created."),
+          ),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
+
+      } on Exception catch (e) {
+        if (e.toString().contains('email-already-in-use')) {
+          showDialog(
+            context: context,
+            builder: (context) =>
+                AlertDialog(
+                  title: const Text("Email already in use"),
+                  content: const Text(
+                      "This email is already registered. Please login instead."),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                LoginPage(onTap: () {},),
+                          ),
+                        );
+                      },
+                      child: const Text('Login'),
+                    ),
+                  ],
+                ),
+          );
+        }
+        else {
+          showDialog(
+            context: context,
+            builder: (context) =>
+                AlertDialog(
+                  title: const Text("Registration Error"),
+                  content: Text(e.toString()),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Ok'),
+                    ),
+                  ],
+                ),
+          );
+        }
+      }
     } else {
-      // Show invalid OTP message
+      showDialog(
+        context: context,
+        builder: (context) => const AlertDialog(
+          title: Text("Invalid OTP."),
+        ),
+      );
     }
   }
+
 
   void _startTimer() {
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {

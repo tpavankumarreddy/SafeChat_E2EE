@@ -11,7 +11,7 @@ import '../crypto/handshake_handler.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/chat_services.dart';
 import 'chat_page.dart';
-import '../data/database_helper.dart'; // Import the DatabaseHelper class
+import '../data/database_helper.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -27,13 +27,13 @@ class _HomePageState extends State<HomePage> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final ChatService chatService = ChatService();
   late GlobalKey<ScaffoldState> _scaffoldKey;
-  late List<String> addressBookEmails; // List to store address book emails
+  late List<String> addressBookEmails;
 
   @override
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    _loadAddressBookEmails(); // Load address book emails from SQLite database
+    _loadAddressBookEmails(); // Load address book emails with nicknames from SQLite database
   }
 
   User? getCurrentUser() {
@@ -43,15 +43,15 @@ class _HomePageState extends State<HomePage> {
   // Function to handle address book emails change
   void onAddressBookEmailsChanged(List<String> emails) {
     setState(() {
-      addressBookEmails = emails; // Update the address book emails
+      addressBookEmails = emails;
     });
   }
 
-  // Function to load address book emails from SQLite database
+  // Function to load address book emails with nicknames from SQLite database
   void _loadAddressBookEmails() async {
-    List<String> emails = await DatabaseHelper.instance.queryAllEmails();
+    List<Map<String, dynamic>> emailNicknames = await DatabaseHelper.instance.queryAllEmailsWithNicknames();
     setState(() {
-      addressBookEmails = emails.toSet().toList();
+      addressBookEmails = emailNicknames.map<String>((entry) => (entry['nickname'] ?? entry['email']) as String).toList();
     });
   }
 
@@ -102,7 +102,7 @@ class _HomePageState extends State<HomePage> {
             return const Text("Loading...");
           }
           if (snapshot.hasData && snapshot.data != null) {
-            var userDocs = snapshot.data!; // Directly use the list of user data
+            var userDocs = snapshot.data!;
             return ListView(
               children: userDocs.map<Widget>((userData) {
                 return _buildUserListItem(userData, context);

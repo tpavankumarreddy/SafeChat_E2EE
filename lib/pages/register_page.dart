@@ -48,6 +48,9 @@ class RegisterPage extends StatelessWidget {
 
   Future<void> register(BuildContext context) async {
 
+    String? returnedOTP;
+
+
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _pwController.text.isEmpty ||
@@ -89,91 +92,16 @@ class RegisterPage extends StatelessWidget {
 
     if (_pwController.text == _confirmPwController.text && _pwController.text.length >= 6) {
 
-      Navigator.push(
+
+      returnedOTP = await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => OTPPage(
-            email: _emailController.text,
-            username: _nameController.text,
-            onOTPVerified: () async {
-              final auth = AuthService();
-              try {
-                final returnedOTP = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => OTPPage(
-                      email: _emailController.text,
-                      username: _nameController.text,
-                      onOTPVerified: () {},
-                    ),
-                  ),
-                );
+            builder: (context) => OTPPage(
+                email: _emailController.text,
+                username: _nameController.text,
+                password: _pwController.text,
 
-                if (returnedOTP != null) {
-                  try {
-                  await auth.signUpWithEmailPassword(_emailController.text, _pwController.text, returnedOTP);
-
-                  Navigator.pop(context); // Navigate back to RegisterPage
-                  showDialog(
-                    context: context,
-                    builder: (context) => const SnackBar(
-                      content: Text("Registration Successful! 🥳. Your account has been created."),
-                  ),
-                );
-                } on Exception catch (e) {
-                    if (e.toString().contains('email-already-in-use')) {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Email already in use"),
-                          content: const Text("This email is already registered. Please login instead."),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context); // Dismiss the dialog
-                                onTap?.call(); // Navigate to login page
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => LoginPage(onTap: () {  },),
-                                  ),
-                                );
-                              },
-                              child: const Text('Login'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    else {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Registration Error"),
-                          content: Text(e.toString()),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              child: const Text('Ok'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  }
-              }
-              }catch (e) {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(e.toString()),
-                  ),
-                );
-              }
-            },
-          ),
+                ),
         ),
       );
 
@@ -197,6 +125,24 @@ class RegisterPage extends StatelessWidget {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text("Password length should be at least 6.", style: TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (returnedOTP == null) {
+      // Handle cases where the OTP verification failed or was canceled
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("OTP Verification Failed"),
+          content: const Text("Please try again."),
           actions: [
             TextButton(
               onPressed: () {

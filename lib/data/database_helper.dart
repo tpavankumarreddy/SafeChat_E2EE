@@ -17,8 +17,6 @@ class DatabaseHelper {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static final DatabaseHelper instance = DatabaseHelper._();
 
-
-
   // Getter for the database instance
   Future<Database> get database async {
     if (_database != null) {
@@ -42,27 +40,29 @@ class DatabaseHelper {
             $_columnEmail TEXT,
             $_columnName TEXT,
             $_columnImagePath TEXT
-
           )
         ''');
       },
     );
   }
 
-  // Insert email
-  Future<int> insertEmail(String email) async {
+  // Insert email with nickname
+  Future<int> insertEmail(String email, String nickname) async {
     final db = await instance.database;
-    return await db.insert(_tableName, {_columnEmail: email});
+    return await db.insert(_tableName, {
+      _columnEmail: email,
+      _columnName: nickname, // Save the nickname
+    });
   }
 
-  // Query all emails
-  Future<List<String>> queryAllEmails() async {
+  // Query all emails with nicknames
+  Future<List<Map<String, dynamic>>> queryAllEmailsWithNicknames() async {
     final db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.query(_tableName);
-    return List.generate(maps.length, (i) => maps[i][_columnEmail]);
+    return maps; // Return list of maps with email and nickname
   }
 
-  // Delete email by emial
+  // Delete email by email
   Future<int> deleteEmail(String email) async {
     final db = await instance.database;
     return await db.delete(
@@ -72,7 +72,7 @@ class DatabaseHelper {
     );
   }
 
-  // Update email by emial
+  // Update email by email
   Future<int> updateEmail(String oldEmail, String newEmail) async {
     final db = await instance.database;
     return await db.update(
@@ -86,7 +86,10 @@ class DatabaseHelper {
   // Insert nickname and image path
   Future<int> insertProfileData(String nickname, String imagePath) async {
     final db = await instance.database;
-    return await db.insert(_tableName, {_columnName: nickname, _columnImagePath: imagePath});
+    return await db.insert(_tableName, {
+      _columnName: nickname,
+      _columnImagePath: imagePath,
+    });
   }
 
   // Query nickname and image path
@@ -107,7 +110,6 @@ class DatabaseHelper {
       whereArgs: [1], // Assuming single user profile (update based on ID)
     );
   }
-
 
   // Clear all data from the database
   Future<void> clearDatabase() async {

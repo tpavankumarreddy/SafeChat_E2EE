@@ -20,7 +20,7 @@ class ChatService {
     final String currentUserEmail = _auth.currentUser!.email!;
     final Timestamp timestamp = Timestamp.now();
 
-    print('[ChatService - sendMessage] Line 19: sendMessage called with receiverID: $receiverID, message: $message, senderID: $currentUserID');
+    //print('[ChatService - sendMessage] Line 19: sendMessage called with receiverID: $receiverID, message: $message, senderID: $currentUserID');
 
     Message newMessage = Message(
       senderID: currentUserID,
@@ -34,8 +34,8 @@ class ChatService {
     ids.sort();
     String chatRoomID = ids.join('_');
 
-    print('[ChatService - sendMessage] Line 29: Adding message to chatRoomID: $chatRoomID');
-    print('[ChatService - sendMessage] Line 30: Message data: ${newMessage.toMap()}');
+    // print('[ChatService - sendMessage] Line 29: Adding message to chatRoomID: $chatRoomID');
+    // print('[ChatService - sendMessage] Line 30: Message data: ${newMessage.toMap()}');
 
     await _firestore.collection("chat_rooms").doc(chatRoomID).collection("messages").add(newMessage.toMap());
   }
@@ -45,7 +45,7 @@ class ChatService {
     ids.sort();
     String chatRoomID = ids.join('_');
 
-    print('[ChatService - getMessages] Line 37: Fetching messages for chatRoomID: $chatRoomID');
+    //print('[ChatService - getMessages] Line 37: Fetching messages for chatRoomID: $chatRoomID');
 
     return _firestore
         .collection("chat_rooms")

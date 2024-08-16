@@ -38,22 +38,22 @@ class _ChatPageState extends State<ChatPage> {
     super.initState();
     String senderID = _authService.getCurrentUser()!.uid;
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
-    print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
+    //print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
   }
 
   Future<void> sendMessage() async {
-    print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
+    //print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
 
     if (_messageController.text.isNotEmpty) {
       final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, widget.secretKey);
-      print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
+      //print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
 
       await _chatService.sendMessage(widget.receiverID, jsonEncode({
         'cipherText': encryptedData['cipherText'],
         'nonce': encryptedData['nonce'],
       }));
       _messageController.clear();
-      print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
+      //print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
     }
   }
 
@@ -69,7 +69,7 @@ class _ChatPageState extends State<ChatPage> {
       try {
         messageData = jsonDecode(messageJson);
       } catch (e) {
-        print("Error decoding message content: $e");
+        //print("Error decoding message content: $e");
         continue;
       }
 
@@ -77,7 +77,7 @@ class _ChatPageState extends State<ChatPage> {
       final nonceBase64 = messageData['nonce'] ?? '';
 
       if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
-        print("Error: Message content is missing");
+        //print("Error: Message content is missing");
         continue;
       }
 
@@ -88,7 +88,7 @@ class _ChatPageState extends State<ChatPage> {
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
         });
       } catch (e) {
-        print("Error decrypting message: $e");
+        //print("Error decrypting message: $e");
       }
     }
 
@@ -116,24 +116,24 @@ class _ChatPageState extends State<ChatPage> {
     return StreamBuilder<QuerySnapshot>(
       stream: _messageStream,
       builder: (context, snapshot) {
-        print('[ChatPage - _buildMessageList] StreamBuilder triggered');
+        //print('[ChatPage - _buildMessageList] StreamBuilder triggered');
 
         if (snapshot.hasError) {
-          print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
+          //print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           return Center(child: Text("Error: ${snapshot.error}"));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          print('[ChatPage - _buildMessageList] Waiting for data...');
+          //print('[ChatPage - _buildMessageList] Waiting for data...');
           return Center(child: CircularProgressIndicator());
         }
 
         if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
-          print('[ChatPage - _buildMessageList] No messages');
+          //print('[ChatPage - _buildMessageList] No messages');
           return Center(child: Text("No messages yet"));
         }
 
-        print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
+        //print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
 
         // Decrypt messages and update the state
         _decryptMessages(snapshot.data!.docs);

@@ -9,9 +9,9 @@ class EncryptionHelper {
     final messageBytes = Uint8List.fromList(utf8.encode(message));
     final nonce = await _aes.newNonce();
 
-    print('Encrypting message: $message');
-    print('Message bytes: $messageBytes');
-    print('Nonce: $nonce');
+    // print('Encrypting message: $message');
+    // print('Message bytes: $messageBytes');
+    // print('Nonce: $nonce');
 
     final encrypted = await _aes.encrypt(
       messageBytes,
@@ -22,8 +22,8 @@ class EncryptionHelper {
     final cipherText = base64Encode(encrypted.cipherText);
     final encodedNonce = base64Encode(encrypted.nonce);
 
-    print('CipherText: $cipherText');
-    print('Encoded Nonce: $encodedNonce');
+    // print('CipherText: $cipherText');
+    // print('Encoded Nonce: $encodedNonce');
 
     return {
       'cipherText': cipherText,
@@ -36,9 +36,9 @@ class EncryptionHelper {
       final cipherText = base64Decode(cipherTextBase64);
       final nonce = base64Decode(nonceBase64);
 
-      print('Decrypting message...');
-      print('Cipher Text (decoded): $cipherText');
-      print('Nonce (decoded): $nonce');
+      // print('Decrypting message...');
+      // print('Cipher Text (decoded): $cipherText');
+      // print('Nonce (decoded): $nonce');
 
       final mac = Mac.empty;
 
@@ -54,11 +54,11 @@ class EncryptionHelper {
       );
 
       final message = utf8.decode(decrypted);
-      print('Decrypted message: $message');
+      //print('Decrypted message: $message');
 
       return message;
     } catch (e) {
-      print('Error during decryption: $e');
+     // print('Error during decryption: $e');
       throw e;
     }
   }

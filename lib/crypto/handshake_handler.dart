@@ -51,7 +51,7 @@ class HandshakeHandler {
     List<int> sharedSecretBytes = await sharedSecret.extractBytes();
     await _secureStorage.write(key: 'shared_Secret_With_$remoteEmail', value: base64Encode(sharedSecretBytes));
     print("Shared secret: $sharedSecretBytes");
-    //print('shared_Secret_With$remoteEmail $base64Decode(secretKey1!)');
+    print('shared_Secret_With_$remoteEmail $base64Decode(secretKey1!)');
 
   }
 }

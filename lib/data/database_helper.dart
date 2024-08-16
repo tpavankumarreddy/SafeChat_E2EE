@@ -111,6 +111,20 @@ class DatabaseHelper {
     );
   }
 
+  Future<String?> getEmailByNickname(String nickname) async {
+    final db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      _tableName,
+      where: '$_columnName = ?',
+      whereArgs: [nickname],
+    );
+    if (maps.isNotEmpty) {
+      return maps.first[_columnEmail] as String;
+    } else {
+      return null; // Return null if no email found for the nickname
+    }
+  }
+
   // Clear all data from the database
   Future<void> clearDatabase() async {
     final db = await instance.database;

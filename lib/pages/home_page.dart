@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -54,6 +55,25 @@ class _HomePageState extends State<HomePage> {
       addressBookEmails = emailNicknames.map<String>((entry) => (entry['nickname'] ?? entry['email']) as String).toList();
     });
   }
+  Future<String?> getUidForEmail(String email) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection("user's") // Assuming your user data is stored in a collection called 'users'
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data()['uid'] as String?;
+      } else {
+        print('No user found with email $email');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching UID for email $email: $e');
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,39 +112,18 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } else {
-      return StreamBuilder<List<Map<String, dynamic>>>(
-        stream: ChatService().getUsersStream(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Text("Error");
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Text("Loading...");
-          }
-          if (snapshot.hasData && snapshot.data != null) {
-            var userDocs = snapshot.data!;
-            return ListView(
-              children: userDocs.map<Widget>((userData) {
-                return _buildUserListItem(userData, context);
-              }).toList(),
-            );
-          } else {
-            return const Center(child: Text("No users found"));
-          }
-        },
-      );
-    }
-  }
+      return ListView.builder(
+          itemCount: addressBookEmails.length,
+          itemBuilder: (context, index) {
+          final name = addressBookEmails[index];
 
-  Widget _buildUserListItem(Map<String, dynamic> userData, BuildContext context) {
-    final authService = AuthService();
-    if (userData["email"] != authService.getCurrentUser()!.email &&
-        addressBookEmails.contains(userData["email"])) {
       return UserTile(
-        text: userData["email"],
+        text: name,
         onTap: () async {
-          final secretKeyString = await _secureStorage.read(key: 'shared_Secret_With${userData["email"]}');
-          final handshakeMessage = await handshakeHandler.receiveHandshakeMessage(getCurrentUser()!.uid, userData["uid"]);
+          final email = await DatabaseHelper.instance.getEmailByNickname(addressBookEmails[index]);
+          final uid = await getUidForEmail(email!);
+          final secretKeyString = await _secureStorage.read(key: 'shared_Secret_With_${email}');
+          final handshakeMessage = await handshakeHandler.receiveHandshakeMessage(getCurrentUser()!.uid, uid!);
 
           SecretKey? generatedSecretKey;
 
@@ -133,10 +132,10 @@ class _HomePageState extends State<HomePage> {
               // Bob's side: process the handshake message received from Alice
               print("receiving handshake ....");
 
-              await handshakeHandler.handleReceivedHandshakeMessage('${getCurrentUser()!.email}', userData["email"], handshakeMessage);
-              print('Secret key generated and stored for ${userData["email"]}.');
+              await handshakeHandler.handleReceivedHandshakeMessage('${getCurrentUser()!.email}', email, handshakeMessage);
+              print('Secret key generated and stored for $email.');
               // Read and decode the generated secret key
-              final storedSecretKeyString = await _secureStorage.read(key: 'shared_Secret_With_${userData["email"]}');
+              final storedSecretKeyString = await _secureStorage.read(key: 'shared_Secret_With_${email}');
               print(storedSecretKeyString);
               if (storedSecretKeyString != null) {
                 final secretKeyBytes = base64Decode(storedSecretKeyString);
@@ -145,7 +144,7 @@ class _HomePageState extends State<HomePage> {
             } else {
               // Alice's side: perform X3DH and send handshake message
               print("performing x3dh....");
-              final x3dhResult = await x3dhHelper.performX3DHKeyAgreement('${getCurrentUser()!.email}', userData["email"], 0);
+              final x3dhResult = await x3dhHelper.performX3DHKeyAgreement('${getCurrentUser()!.email}', email, 0);
 
               SecretKey sharedSecret = x3dhResult['sharedSecret'];
               int randomIndex = x3dhResult['randomIndex'];
@@ -156,13 +155,13 @@ class _HomePageState extends State<HomePage> {
 
               // Store the shared secret
               await _secureStorage.write(
-                  key: 'shared_Secret_With${userData["email"]}',
+                  key: 'shared_Secret_With${email}',
                   value: base64Encode(sharedSecretBytes));
 
-              print('Secret key generated and stored for ${userData["email"]}.');
+              print('Secret key generated and stored for $email.');
 
-              await handshakeHandler.sendHandshakeMessage(getCurrentUser()!.uid, userData["uid"], userData["email"], randomIndex);
-              print('Handshake message sent from ${authService.getCurrentUser()!.email} to ${userData["email"]}.');
+              await handshakeHandler.sendHandshakeMessage(getCurrentUser()!.uid, uid, name, randomIndex);
+              print('Handshake message sent from ${_authService.getCurrentUser()!.email} to $email.');
 
               generatedSecretKey = sharedSecret;
             }
@@ -177,8 +176,8 @@ class _HomePageState extends State<HomePage> {
               context,
               MaterialPageRoute(
                 builder: (context) => ChatPage(
-                  receiverEmail: userData["email"],
-                  receiverID: userData["uid"],
+                  receiverEmail: email,
+                  receiverID: uid,
                   secretKey: generatedSecretKey!,
                 ),
               ),
@@ -188,8 +187,8 @@ class _HomePageState extends State<HomePage> {
           }
         },
       );
-    } else {
-      return Container(); // Return an empty container if conditions are not met
     }
+    );
   }
+}
 }

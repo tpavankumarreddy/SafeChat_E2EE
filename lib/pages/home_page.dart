@@ -155,7 +155,7 @@ class _HomePageState extends State<HomePage> {
 
               // Store the shared secret
               await _secureStorage.write(
-                  key: 'shared_Secret_With${email}',
+                  key: 'shared_Secret_With_${email}',
                   value: base64Encode(sharedSecretBytes));
 
               print('Secret key generated and stored for $email.');

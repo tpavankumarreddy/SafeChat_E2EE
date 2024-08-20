@@ -173,7 +173,7 @@ class _ChatPageState extends State<ChatPage> {
             child: MyTextField(
               controller: _messageController,
               hintText: 'Type a message',
-              obscuredText: false,
+              obscuredText: false, onChanged: (value) {  },
             ),
           ),
           IconButton(

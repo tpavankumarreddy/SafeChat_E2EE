@@ -9,22 +9,33 @@ import '../services/auth/otp_service.dart';
 import 'login_page.dart';
 import 'otp_page.dart';
 
-class RegisterPage extends StatelessWidget {
-  EmailOTP myAuth = EmailOTP();
+class RegisterPage extends StatefulWidget {
+  final void Function()? onTap;
+
+  const RegisterPage({Key? key, required this.onTap}) : super(key: key);
+
+  @override
+  _RegisterPageState createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final EmailOTP myAuth = EmailOTP();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _pwController = TextEditingController();
   final TextEditingController _confirmPwController = TextEditingController();
 
-  final void Function()? onTap;
-
-  RegisterPage({super.key, required this.onTap});
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Timer related fields
   Timer? _timer;
   int _remainingTime = 90;
   bool _showResendButton = false;
+
+  // Regular expression to check if string
+  final RegExp passValid = RegExp(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)");
+  double passwordStrength = 0;
 
   Future<void> _startTimer(VoidCallback onResendAvailable) async {
     _remainingTime = 90; // reset timer to 90 sec
@@ -46,10 +57,40 @@ class RegisterPage extends StatelessWidget {
     await OTPService().sendOTP(myAuth, _emailController.text, _nameController.text);
   }
 
+  // A function that validates the user-entered password
+  bool validatePassword(String pass) {
+    String password = pass.trim();
+
+    if (password.isEmpty) {
+      setState(() {
+        passwordStrength = 0;
+      });
+    } else if (password.length < 6) {
+      setState(() {
+        passwordStrength = 1 / 4;
+      });
+    } else if (password.length < 8) {
+      setState(() {
+        passwordStrength = 2 / 4;
+      });
+    } else {
+      if (passValid.hasMatch(password)) {
+        setState(() {
+          passwordStrength = 4 / 4;
+        });
+        return true;
+      } else {
+        setState(() {
+          passwordStrength = 3 / 4;
+        });
+        return false;
+      }
+    }
+    return false;
+  }
+
   Future<void> register(BuildContext context) async {
-
     String? returnedOTP;
-
 
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
@@ -57,14 +98,12 @@ class RegisterPage extends StatelessWidget {
         _confirmPwController.text.isEmpty) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("All fields are required.", style: TextStyle(fontSize: 16)),
+        builder: (context) => const AlertDialog(
+          title: Text("All fields are required.", style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Ok'),
+              onPressed: null,
+              child: Text('Ok'),
             ),
           ],
         ),
@@ -75,14 +114,12 @@ class RegisterPage extends StatelessWidget {
     if (!EmailValidator.validate(_emailController.text)) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Enter a valid email address.", style: TextStyle(fontSize: 16)),
+        builder: (context) => const AlertDialog(
+          title: Text("Enter a valid email address.", style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Ok'),
+              onPressed: null,
+              child: Text('Ok'),
             ),
           ],
         ),
@@ -90,9 +127,7 @@ class RegisterPage extends StatelessWidget {
       return;
     }
 
-    if (_pwController.text == _confirmPwController.text && _pwController.text.length >= 6) {
-
-
+    if (_pwController.text == _confirmPwController.text && validatePassword(_pwController.text)) {
       returnedOTP = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -100,22 +135,18 @@ class RegisterPage extends StatelessWidget {
             email: _emailController.text,
             username: _nameController.text,
             password: _pwController.text,
-
           ),
         ),
       );
-
     } else if (_pwController.text != _confirmPwController.text) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Passwords don't match", style: TextStyle(fontSize: 18)),
+        builder: (context) => const AlertDialog(
+          title: Text("Passwords don't match", style: TextStyle(fontSize: 18)),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Ok'),
+              onPressed: null,
+              child: Text('Ok'),
             ),
           ],
         ),
@@ -123,37 +154,34 @@ class RegisterPage extends StatelessWidget {
     } else {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Password length should be at least 6.", style: TextStyle(fontSize: 18)),
+        builder: (context) => const AlertDialog(
+          title: Text("Password should contain Capital, small letter & Number & Special",
+              style: TextStyle(fontSize: 18)),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Ok'),
+              onPressed: null,
+              child: Text('Ok'),
             ),
           ],
         ),
       );
     }
-    if (returnedOTP == null) {
-      // Handle cases where the OTP verification failed or was canceled
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("OTP Verification Failed"),
-          content: const Text("Please try again."),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Ok'),
-            ),
-          ],
-        ),
-      );
-    }
+
+    // if (returnedOTP == null) {
+    //   showDialog(
+    //     context: context,
+    //     builder: (context) => const AlertDialog(
+    //       title: Text("OTP Verification Failed"),
+    //       content: Text("Please try again."),
+    //       actions: [
+    //         TextButton(
+    //           onPressed: null,
+    //           child: Text('Ok'),
+    //         ),
+    //       ],
+    //     ),
+    //   );
+    // }
   }
 
   @override
@@ -161,68 +189,89 @@ class RegisterPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.message,
-              size: 60,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 50),
-            Text(
-              "Hello, let's get you registered.",
-              style: TextStyle(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.message,
+                size: 60,
                 color: Theme.of(context).colorScheme.primary,
-                fontSize: 18,
               ),
-            ),
-            const SizedBox(height: 50),
-            MyTextField(
-              hintText: "Name",
-              obscuredText: false,
-              controller: _nameController,
-            ),
-            const SizedBox(height: 10),
-            MyTextField(
-              hintText: "Email",
-              obscuredText: false,
-              controller: _emailController,
-            ),
-            const SizedBox(height: 10),
-            MyTextField(
-              hintText: "Password",
-              obscuredText: true,
-              controller: _pwController,
-            ),
-            const SizedBox(height: 10),
-            MyTextField(
-              hintText: "Confirm Password",
-              obscuredText: true,
-              controller: _confirmPwController,
-            ),
-            const SizedBox(height: 25),
-            MyButton(
-              text: "R E G I S T E R",
-              onTap: () => register(context),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Already have an account?"),
-                GestureDetector(
-                  onTap: onTap,
-                  child: const Text(
-                    "Login Now!!",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
+              const SizedBox(height: 50),
+              Text(
+                "Hello, let's get you registered.",
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 50),
+              MyTextField(
+                hintText: "Name",
+                obscuredText: false,
+                controller: _nameController, onChanged: (value) {  },
+              ),
+              const SizedBox(height: 10),
+              MyTextField(
+                hintText: "Email",
+                obscuredText: false,
+                controller: _emailController, onChanged: (value) {  },
+              ),
+              const SizedBox(height: 10),
+              MyTextField(
+                hintText: "Password",
+                obscuredText: true,
+                controller: _pwController,
+                onChanged: (value) {
+                  validatePassword(value); // Validate password in real-time
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: LinearProgressIndicator(
+                  value: passwordStrength,
+                  backgroundColor: Colors.grey[300],
+                  minHeight: 5,
+                  color: passwordStrength <= 1 / 4
+                      ? Colors.red
+                      : passwordStrength == 2 / 4
+                      ? Colors.yellow
+                      : passwordStrength == 3 / 4
+                      ? Colors.blue
+                      : Colors.green,
+                ),
+              ),
+              const SizedBox(height: 10),
+              MyTextField(
+                hintText: "Confirm Password",
+                obscuredText: true,
+                controller: _confirmPwController, onChanged: (value) {  },
+              ),
+              const SizedBox(height: 25),
+              MyButton(
+                text: "R E G I S T E R",
+                onTap: () => register(context),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Already have an account?"),
+                  GestureDetector(
+                    onTap: widget.onTap,
+                    child: const Text(
+                      "Login Now!!",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

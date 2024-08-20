@@ -59,6 +59,8 @@ dependencies:
   email_validator: ^3.0.0
   dynamic_color: ^1.7.0
   flutter_launcher_icons: ^0.13.1
+  flutter_password_strength: ^0.1.6
+  get: ^4.6.5
 
 
 

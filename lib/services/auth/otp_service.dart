@@ -46,7 +46,6 @@ class OTPService {
               max-width: 600px;
               margin: 0 auto;
               padding: 30px;
-              background-color: #fff; /* White background for content */
               border-radius: 5px; /* Rounded corners */
               
             }
@@ -77,9 +76,8 @@ class OTPService {
         <body>
           <div class="container">
             <div class="header">
-                <a href="https://github.com/tpavankumarreddy/SafeChat_E2EE">  
-                <img src="https://ibb.co/kQW7whd" 
-                alt="Safe Chat Banner" class="banner">  </a>
+                <a href="https://github.com/tpavankumarreddy/SafeChat_E2EEs">
+                <img src="https://i.ibb.co/BGzHCsj/banner-Safe-Chat.png" alt="banner-Safe-Chat" border="0"></a>
             </div>
             <div class="content">
               <h2>Hey $name,</h2>

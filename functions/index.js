@@ -2,6 +2,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nacl = require("tweetnacl");
 nacl.util = require("tweetnacl-util");
+const crypto = require('crypto');
 
 admin.initializeApp();
 
@@ -104,39 +105,42 @@ exports.checkEmailExists = functions.https.onCall(async (data, context) => {
 
 exports.initiateX3DH = functions.https.onCall(async (data, context) => {
   const email = data.email;
+  const aliceEmail = data.aliceEmail;
   const aliceIdentityKey = data.aliceIdentityKey;
   const alicePreKey = data.alicePreKey;
 
   const i = Math.floor(Math.random() * 100);
+  const userDoc = await admin.firestore().collection("user's").doc(email).get();
+  const bobIdentityKey = userDoc.get('identityKey');
+  const bobPreKey = userDoc.get('preKey');
+  const bobOneTimePreKey = userDoc.get(`oneTimePreKeys.${i}`);
 
-  const bobIdentityKey = await
-  admin.firestore().collection("user's").doc(email).get('identityKey');
-  const bobPreKey = await
-  admin.firestore().collection("user's").doc(email).get('preKey');
-  const bobOneTimePreKey =await
-  admin.firestore().collection("user's").doc(email).get(`oneTimePreKeys.${i}`);
+  const encryptedPreKey = await encryptWithPublicKey(bobPreKey, alicePreKey);
+  const encryptedOneTimePreKey = await encryptWithPublicKey(bobOneTimePreKey, alicePreKey);
 
-  const encryptedPreKey = await encrypt(bobPreKey, alicePreKey);
-  const encryptedOneTimePreKey = await encrypt(bobOneTimePreKey, alicePreKey);
-
-  await admin.firestore().collection('pendingMessages').doc(email).set({
-    aliceIdentityKey: aliceIdentityKey,
-    alicePreKey: alicePreKey,
-    index: i,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  await admin.firestore().collection('pendingMessages')
+    .doc(email)
+    .collection('from')
+    .doc(aliceEmail)
+    .set({
+      aliceIdentityKey: aliceIdentityKey,
+      alicePreKey: alicePreKey,
+      index: index,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
   return {
     bobIdentityKey: bobIdentityKey,
     encryptedPreKey: encryptedPreKey,
     encryptedOneTimePreKey: encryptedOneTimePreKey,
-    index: i
+    index: i    
   };
 });
 
-async function encrypt(data, key) {
-  // Encryption logic here
-  return encryptedData;
+function encryptWithPublicKey(data, publicKey) {
+  const buffer = Buffer.from(data, 'utf8');
+  const encrypted = crypto.publicEncrypt(publicKey, buffer);
+  return encrypted.toString('base64');
 }
 
 exports.retrieveAliceKeys = functions.https.onCall(async (data, context) => {

@@ -2,7 +2,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nacl = require("tweetnacl");
 nacl.util = require("tweetnacl-util");
-const crypto = require('crypto');
+const crypto = require("crypto");
 
 admin.initializeApp();
 
@@ -111,43 +111,51 @@ exports.initiateX3DH = functions.https.onCall(async (data, context) => {
 
   const i = Math.floor(Math.random() * 100);
   const userDoc = await admin.firestore().collection("user's").doc(email).get();
-  const bobIdentityKey = userDoc.get('identityKey');
-  const bobPreKey = userDoc.get('preKey');
+  const bobIdentityKey = userDoc.get("identityKey");
+  const bobPreKey = userDoc.get("preKey");
   const bobOneTimePreKey = userDoc.get(`oneTimePreKeys.${i}`);
 
   const encryptedPreKey = await encryptWithPublicKey(bobPreKey, alicePreKey);
-  const encryptedOneTimePreKey = await encryptWithPublicKey(bobOneTimePreKey, alicePreKey);
+  const encryptedOneTimePreKey = await encryptWithPublicKey(bobOneTimePreKey,
+      alicePreKey);
 
-  await admin.firestore().collection('pendingMessages')
-    .doc(email)
-    .collection('from')
-    .doc(aliceEmail)
-    .set({
-      aliceIdentityKey: aliceIdentityKey,
-      alicePreKey: alicePreKey,
-      index: index,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
+  await admin.firestore().collection("pendingMessages")
+      .doc(email)
+      .collection("from")
+      .doc(aliceEmail)
+      .set({
+        aliceIdentityKey: aliceIdentityKey,
+        alicePreKey: alicePreKey,
+        index: i,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
   return {
     bobIdentityKey: bobIdentityKey,
     encryptedPreKey: encryptedPreKey,
     encryptedOneTimePreKey: encryptedOneTimePreKey,
-    index: i    
+    index: i,
   };
 });
-
+/**
+ * Encrypts data using a given public key.
+ *
+ * @param {string} data - The data to be encrypted.
+ * @param {string} publicKey - The public key used for encryption.
+ * @return {string} The encrypted data.
+ */
 function encryptWithPublicKey(data, publicKey) {
-  const buffer = Buffer.from(data, 'utf8');
+  const buffer = Buffer.from(data, "utf8");
   const encrypted = crypto.publicEncrypt(publicKey, buffer);
-  return encrypted.toString('base64');
+  return encrypted.toString("base64");
 }
+
 
 exports.retrieveAliceKeys = functions.https.onCall(async (data, context) => {
   const email = data.email;
 
   const doc = await
-  admin.firestore().collection('pendingMessages').doc(email).get();
+  admin.firestore().collection("pendingMessages").doc(email).get();
 
   if (doc.exists) {
     const aliceData = doc.data();
@@ -158,9 +166,7 @@ exports.retrieveAliceKeys = functions.https.onCall(async (data, context) => {
       index: aliceData.index,
     };
   } else {
-    throw new functions.https.HttpsError('not-found',
-    'No pending messages found for this user.');
+    throw new functions.https.HttpsError("not-found",
+        "No pending messages found for this user.");
   }
 });
-
-

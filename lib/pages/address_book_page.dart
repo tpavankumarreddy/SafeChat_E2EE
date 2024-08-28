@@ -1,8 +1,17 @@
+import 'dart:convert';
+import 'package:SafeChat/services/auth/auth_service.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cryptography/cryptography.dart';
+import 'package:encrypt/encrypt.dart';
 import 'package:flutter/material.dart';
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/asymmetric/rsa.dart';
 import '../components/user_tile.dart';
+import '../crypto/X3DHHelper.dart';
 import '../data/database_helper.dart';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:typed_data';
 class AddressBookPage extends StatefulWidget {
   const AddressBookPage({super.key, required this.onEmailsChanged});
 
@@ -10,6 +19,22 @@ class AddressBookPage extends StatefulWidget {
 
   @override
   State<AddressBookPage> createState() => _AddressBookPageState();
+}
+
+final AuthService authService = AuthService();
+const FlutterSecureStorage storage = FlutterSecureStorage();
+final x3dhHelper = X3DHHelper();
+
+
+Uint8List decryptWithPrivateKey(String encryptedData, String privateKeyPem) {
+  final parser = RSAKeyParser();
+  final privateKey = parser.parse(privateKeyPem) as RSAPrivateKey;
+
+  final cipher = RSAEngine()
+    ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+
+  final decryptedBytes = cipher.process(base64Decode(encryptedData));
+  return decryptedBytes;
 }
 
 class _AddressBookPageState extends State<AddressBookPage> {
@@ -75,16 +100,111 @@ class _AddressBookPageState extends State<AddressBookPage> {
                 String email = _emailController.text;
                 String nickname = nicknameController.text;
 
+                final userEmail = authService.getCurrentUser()?.email;
+                String? userIdentityKeyBase64 = await storage.read(key: "identityKeyPairPublic$userEmail");
+                String? userPreKeyBase64 = await storage.read(key: "preKeyPairPublic$userEmail");
+                String? userPreKeyPrivateBase64 = await storage.read(key: "identityKeyPairPrivate$userEmail");
+
+                print(email);
+                print(userEmail);
+                final userIdentityKey = base64Decode(userIdentityKeyBase64!);
+                print("userIdentityKey: $userIdentityKey");
+                final userPreKey = base64Decode(userPreKeyBase64!);
+                print("userPreKey: $userPreKey");
+                Uint8List privateKeyBytes = base64Decode(userPreKeyPrivateBase64!);
+                String privateKeyPem = String.fromCharCodes(privateKeyBytes);
+
+
+
                 HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('checkEmailExists');
                 final response = await callable.call({'email': email});
 
                 try {
                   if (response.data['exists']) {
                     print("Email exists in Firestore.");
+                    print(email);
+                    print(userEmail);
+                    HttpsCallable retrieveKeysCallable = FirebaseFunctions.instance.httpsCallable('retrieveAliceKeys');
+                    print("checking for pending messages....");
+                    final retrieveKeysResponse = await retrieveKeysCallable.call({
+                      'bobEmail': email,'aliceEmail':userEmail,
+                    });
+                    print('Response data: ${retrieveKeysResponse.data}');
+
+                    print("completed");
+                    print(retrieveKeysResponse.data['status']);
+                    if (retrieveKeysResponse.data['status'] == 'No pending messages found for this user.') {
+                      // Initiate X3DH
+                      HttpsCallable initiateX3DHCallable = FirebaseFunctions.instance.httpsCallable('initiateX3DH');
+                      final x3dhResponse = await initiateX3DHCallable.call({
+                        'email': email,
+                        'aliceEmail': '$userEmail',
+                        'aliceIdentityKey': userIdentityKeyBase64,
+                        'alicePreKey': userPreKeyBase64,
+                      });
+                      final data = x3dhResponse.data;
+                      final String bobIdentityKey = data['bobIdentityKey'];
+                      final bobPreKey = data['bobPreKey'];
+                      final bobOneTimePreKey = data['bobOneTimePreKey'];
+                      final index = data['index'];
+
+                      // final decryptedPreKeyBytes = decryptWithPrivateKey(data['encryptedPreKey'], privateKeyPem);
+                      // final decryptedPreKey = utf8.decode(decryptedPreKeyBytes);
+
+                      // final decryptedOneTimePreKeyBytes = decryptWithPrivateKey(data['encryptedOneTimePreKey'], privateKeyPem);
+                      // final decryptedOneTimePreKey = utf8.decode(decryptedOneTimePreKeyBytes);
+                      print("performing X3DH...");
+                      final x3dhResult = await x3dhHelper.performX3DHKeyAgreement(userEmail!,email,bobIdentityKey,bobOneTimePreKey,bobPreKey);
+                      SecretKey sharedSecret = x3dhResult['sharedSecret'];
+                      List<int> sharedSecretBytes = await sharedSecret.extractBytes();
+                      print("Shared secret: $sharedSecretBytes");
+
+                      await storage.write(
+                          key: 'shared_Secret_With_${email}',
+                          value: base64Encode(sharedSecretBytes));
+
+                      print('Secret key generated and stored for $email.');
+                    }
+
+                    else if (retrieveKeysResponse.data['status'] =="yes") {
+                      print("hi");
+                      // final List<int> aliceIdentityKeyList = List<int>.from(retrieveKeysResponse.data['aliceIdentityKey']);
+                      // final List<int> alicePreKeyList = List<int>.from(retrieveKeysResponse.data['alicePreKey']);
+                      //
+                      // print('Alice Identity Key List: $aliceIdentityKeyList');
+                      // // print('Alice Pre Key List: $alicePreKeyList');
+                      // final aliceIdentityKeyString = retrieveKeysResponse.data['aliceIdentityKey'] as String;
+                      // final alicePreKeyString = retrieveKeysResponse.data['alicePreKey'] as String;
+                      //
+                      // final List<int> aliceIdentityKeyList = base64Decode(aliceIdentityKeyString);
+                      // final List<int> alicePreKeyList = base64Decode(alicePreKeyString);
+                      //
+                      // // Create SimplePublicKey instances from the decoded bytes
+                      // final aliceIdentityKey = SimplePublicKey(aliceIdentityKeyList, type: KeyPairType.x25519);
+                      // final alicePreKey = SimplePublicKey(alicePreKeyList, type: KeyPairType.x25519);
+
+
+                      final int indexOTPK = retrieveKeysResponse.data['index'];
+                      print("performing x3dh for bob ....");
+                      final x3dhResult = await x3dhHelper.performX3DHKeyAgreementForBob(userEmail!, email,retrieveKeysResponse.data);
+                      print("object");
+                      SecretKey sharedSecret = x3dhResult['sharedSecret'];
+                      List<int> sharedSecretBytes = await sharedSecret.extractBytes();
+                      await storage.write(key: 'shared_Secret_With_$email', value: base64Encode(sharedSecretBytes));
+                      print("Shared secret: $sharedSecretBytes");
+                      final storedSecretKeyString = await storage.read(key: 'shared_Secret_With_${email}');
+                      print(storedSecretKeyString);
+                    }
+                    else {
+                      print("oh no...");
+                    }
+
+
 
                     setState(() {
                       _emails.add(nickname); // Add the nickname to the list
                       _saveEmailToDatabase(email, nickname); // Save email with nickname
+
                     });
                   } else {
                     print("Email does not exist.");

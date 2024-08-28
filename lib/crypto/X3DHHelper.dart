@@ -17,7 +17,7 @@ class X3DHHelper {
     return value;
   }
 
-  Future<Map<String, dynamic>> performX3DHKeyAgreement(String localEmail, String remoteEmail, int indexOTPK) async {
+  Future<Map<String, dynamic>> performX3DHKeyAgreement(String localEmail, String remoteEmail, String identityKeyOfBob, String oneTimePreKeyOfBob, String preKeyOfBob) async {
     final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate$localEmail');
     final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic$localEmail');
     final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate$localEmail');
@@ -42,24 +42,11 @@ class X3DHHelper {
     );
 
     // Fetch remote public keys
-    final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(remoteEmail);
+    //final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(remoteEmail);
 
-    final remoteIdentityKey = SimplePublicKey(base64Decode(remoteKeys['identityKey']), type: KeyPairType.x25519);
-    final remoteSignedPreKey = SimplePublicKey(base64Decode(remoteKeys['preKey']), type: KeyPairType.x25519);
-
-    SimplePublicKey remoteOneTimePreKey;
-    final oneTimePrekeys = remoteKeys['oneTimePrekeys'] as List;
-    final randomIndex = Random().nextInt(min(oneTimePrekeys.length, 100));
-
-    if (indexOTPK == 0) {
-
-    remoteOneTimePreKey = SimplePublicKey(
-      base64Decode(oneTimePrekeys[randomIndex]),
-      type: KeyPairType.x25519,
-    );
-    } else {
-      remoteOneTimePreKey = SimplePublicKey(base64Decode(oneTimePrekeys[indexOTPK]), type: KeyPairType.x25519);
-    }
+    final remoteIdentityKey = SimplePublicKey(base64Decode(identityKeyOfBob), type: KeyPairType.x25519);
+    final remoteSignedPreKey = SimplePublicKey(base64Decode(preKeyOfBob), type: KeyPairType.x25519);
+    final remoteOneTimePreKey = SimplePublicKey(base64Decode(oneTimePreKeyOfBob), type: KeyPairType.x25519);
 
     final algorithm = X25519();
 
@@ -113,15 +100,23 @@ class X3DHHelper {
 
     return {
       'sharedSecret': combinedSecret,
-      'randomIndex': randomIndex
     };
   }
 
-  Future<Map<String, dynamic>> performX3DHKeyAgreementForBob(String localUid, String remoteEmail, int indexOTPK) async {
+  Future<Map<String, dynamic>> performX3DHKeyAgreementForBob(String localUid, String remoteEmail,Map<String, dynamic> retrieveKeysResponse) async {
     final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate$localUid');
     final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic$localUid');
     final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate$localUid');
     final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic$localUid');
+    print("object1");
+    final aliceIdentityKeyBase64 = retrieveKeysResponse['aliceIdentityKey'];
+    print("object2");
+    final alicePreKeyBase64 = retrieveKeysResponse['alicePreKey'];
+    final aliceIdentityKey = SimplePublicKey(base64Decode(aliceIdentityKeyBase64), type: KeyPairType.x25519);
+    final alicePreKey = SimplePublicKey(base64Decode(alicePreKeyBase64), type: KeyPairType.x25519);
+
+
+    final int indexOTPK = retrieveKeysResponse['index'];
 
     Future<String?> readFromSecureStoragee(String key) async {
       return await _secureStorage.read(key: key);
@@ -177,17 +172,10 @@ class X3DHHelper {
       type: KeyPairType.x25519,
     );
 
-    final localKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(localUid);
+    //final localKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(localUid);
     // Fetch remote public keys
-    final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(remoteEmail);
+    //final remoteKeys = await _preKeyBundleRetriever.getUserPublicKeysByEmail(remoteEmail);
 
-    final remoteIdentityKey = SimplePublicKey(base64Decode(remoteKeys['identityKey']), type: KeyPairType.x25519);
-    final remoteSignedPreKey = SimplePublicKey(base64Decode(remoteKeys['preKey']), type: KeyPairType.x25519);
-
-    SimplePublicKey localOneTimePreKey;
-    final oneTimePrekeys = localKeys['oneTimePrekeys'] as List;
-
-    localOneTimePreKey = SimplePublicKey(base64Decode(oneTimePrekeys[indexOTPK]), type: KeyPairType.x25519);
 
 
     final algorithm = X25519();
@@ -195,16 +183,16 @@ class X3DHHelper {
     // X3DH Key Agreement
     final sharedSecret1 = await algorithm.sharedSecretKey(
       keyPair: localSignedPreKeyPair,
-      remotePublicKey: remoteIdentityKey,
+      remotePublicKey: aliceIdentityKey,
     );
     final sharedSecret2 = await algorithm.sharedSecretKey(
       keyPair: localIdentityKeyPair,
-      remotePublicKey: remoteSignedPreKey,
+      remotePublicKey: alicePreKey,
     );
 
     final sharedSecret3 = await algorithm.sharedSecretKey(
       keyPair: oneTimePreKeys[indexOTPK],
-      remotePublicKey: remoteIdentityKey,
+      remotePublicKey: aliceIdentityKey,
     );
 
 

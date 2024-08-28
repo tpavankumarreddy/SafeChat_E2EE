@@ -35,14 +35,15 @@ class PreKeyValidation{
 
 
     Uint8List x = generateSecureRandomScalar();
-    print("x value :$x");
+    print("x value in bytes :$x");
+    print("public key bytes:");
     print(pubPK.bytes);
       Uint8List xPubpk = Uint8List(32);
 
     Uint8List xInvPubpk = Uint8List(32);
 
     x25519(xPubpk ,x, pubPK.bytes);
-    print("x pk pub : $xPubpk");
+    print("x times pk pub : $xPubpk");
 
 
     BigInt bytesToBigInt(Uint8List bytes) {

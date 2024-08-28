@@ -98,12 +98,14 @@ class _RegisterPageState extends State<RegisterPage> {
         _confirmPwController.text.isEmpty) {
       showDialog(
         context: context,
-        builder: (context) => const AlertDialog(
-          title: Text("All fields are required.", style: TextStyle(fontSize: 16)),
+        builder: (context) => AlertDialog(
+          title: const Text("All fields are required.", style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
-              onPressed: null,
-              child: Text('Ok'),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
             ),
           ],
         ),
@@ -114,12 +116,14 @@ class _RegisterPageState extends State<RegisterPage> {
     if (!EmailValidator.validate(_emailController.text)) {
       showDialog(
         context: context,
-        builder: (context) => const AlertDialog(
-          title: Text("Enter a valid email address.", style: TextStyle(fontSize: 16)),
+        builder: (context) => AlertDialog(
+          title: const Text("Enter a valid email address.", style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
-              onPressed: null,
-              child: Text('Ok'),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
             ),
           ],
         ),
@@ -141,12 +145,14 @@ class _RegisterPageState extends State<RegisterPage> {
     } else if (_pwController.text != _confirmPwController.text) {
       showDialog(
         context: context,
-        builder: (context) => const AlertDialog(
-          title: Text("Passwords don't match", style: TextStyle(fontSize: 18)),
+        builder: (context) => AlertDialog(
+          title: const Text("Passwords don't match", style: TextStyle(fontSize: 18)),
           actions: [
             TextButton(
-              onPressed: null,
-              child: Text('Ok'),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
             ),
           ],
         ),
@@ -154,29 +160,36 @@ class _RegisterPageState extends State<RegisterPage> {
     } else {
       showDialog(
         context: context,
-        builder: (context) => const AlertDialog(
-          title: Text("Password should contain Capital, small letter & Number & Special",
-              style: TextStyle(fontSize: 18)),
+        builder: (context) => AlertDialog(
+          title: const Text(
+            "Password should contain Capital, small letter & Number & Special",
+            style: TextStyle(fontSize: 18),
+          ),
           actions: [
             TextButton(
-              onPressed: null,
-              child: Text('Ok'),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
             ),
           ],
         ),
       );
     }
 
+    // Handle OTP verification failure if needed
     // if (returnedOTP == null) {
     //   showDialog(
     //     context: context,
-    //     builder: (context) => const AlertDialog(
-    //       title: Text("OTP Verification Failed"),
-    //       content: Text("Please try again."),
+    //     builder: (context) => AlertDialog(
+    //       title: const Text("OTP Verification Failed"),
+    //       content: const Text("Please try again."),
     //       actions: [
     //         TextButton(
-    //           onPressed: null,
-    //           child: Text('Ok'),
+    //           onPressed: () {
+    //             Navigator.pop(context);
+    //           },
+    //           child: const Text('Ok'),
     //         ),
     //       ],
     //     ),
@@ -211,13 +224,15 @@ class _RegisterPageState extends State<RegisterPage> {
               MyTextField(
                 hintText: "Name",
                 obscuredText: false,
-                controller: _nameController, onChanged: (value) {  },
+                controller: _nameController,
+                onChanged: (value) {},
               ),
               const SizedBox(height: 10),
               MyTextField(
                 hintText: "Email",
                 obscuredText: false,
-                controller: _emailController, onChanged: (value) {  },
+                controller: _emailController,
+                onChanged: (value) {},
               ),
               const SizedBox(height: 10),
               MyTextField(
@@ -230,24 +245,49 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: LinearProgressIndicator(
-                  value: passwordStrength,
-                  backgroundColor: Colors.grey[300],
-                  minHeight: 5,
-                  color: passwordStrength <= 1 / 4
-                      ? Colors.red
-                      : passwordStrength == 2 / 4
-                      ? Colors.yellow
-                      : passwordStrength == 3 / 4
-                      ? Colors.blue
-                      : Colors.green,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: passwordStrength,
+                      backgroundColor: Colors.grey[300],
+                      minHeight: 5,
+                      color: passwordStrength <= 1 / 4
+                          ? Colors.red
+                          : passwordStrength == 2 / 4
+                          ? Colors.yellow
+                          : passwordStrength == 3 / 4
+                          ? Colors.blue
+                          : Colors.green,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      passwordStrength <= 1 / 4
+                          ? "Weak"
+                          : passwordStrength == 2 / 4
+                          ? "Fair"
+                          : passwordStrength == 3 / 4
+                          ? "Good"
+                          : "Strong",
+                      style: TextStyle(
+                        color: passwordStrength <= 1 / 4
+                            ? Colors.red
+                            : passwordStrength == 2 / 4
+                            ? Colors.yellow
+                            : passwordStrength == 3 / 4
+                            ? Colors.blue
+                            : Colors.green,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 10),
               MyTextField(
                 hintText: "Confirm Password",
                 obscuredText: true,
-                controller: _confirmPwController, onChanged: (value) {  },
+                controller: _confirmPwController,
+                onChanged: (value) {},
               ),
               const SizedBox(height: 25),
               MyButton(
@@ -258,7 +298,7 @@ class _RegisterPageState extends State<RegisterPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Already have an account?"),
+                  const Text("Already have an account? "),
                   GestureDetector(
                     onTap: widget.onTap,
                     child: const Text(

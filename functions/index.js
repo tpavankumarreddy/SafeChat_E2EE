@@ -277,6 +277,7 @@ exports.retrieveAliceKeys = functions.https.onCall(async (data, context) => {
       aliceIdentityKey: aliceData.aliceIdentityKey,
       alicePreKey: aliceData.alicePreKey,
       index: aliceData.index,
+      EphemeralKey: aliceData.EphemeralKey,
       status: "yes",
     };
   } else {

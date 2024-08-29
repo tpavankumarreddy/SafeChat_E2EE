@@ -1,13 +1,13 @@
 import 'dart:math';
-
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cryptography/cryptography.dart';
 import 'dart:convert';
-import 'get_prekeybundle.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class X3DHHelper {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  final PreKeyBundleRetriever _preKeyBundleRetriever = PreKeyBundleRetriever();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
 
   Future<String> _readFromSecureStorage(String key) async {
     final value = await _secureStorage.read(key: key);
@@ -23,6 +23,15 @@ class X3DHHelper {
     final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate$localEmail');
     final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic$localEmail');
 
+    final algorithm = X25519();
+    final localEphemeralKeyPair = await algorithm.newKeyPair();
+    final EphemeralKey = await localEphemeralKeyPair.extractPublicKey();
+    await _firestore.collection("pendingMessages")
+        .doc("${remoteEmail}_$localEmail")
+        .update({
+      'EphemeralKey': base64Encode(EphemeralKey.bytes), // Use a string as the key
+    });
+    print("objectj");
     final localIdentityKeyPair = SimpleKeyPairData(
       base64Decode(localIdentityKeyPairPrivate),
       publicKey: SimplePublicKey(
@@ -48,34 +57,41 @@ class X3DHHelper {
     final remoteSignedPreKey = SimplePublicKey(base64Decode(preKeyOfBob), type: KeyPairType.x25519);
     final remoteOneTimePreKey = SimplePublicKey(base64Decode(oneTimePreKeyOfBob), type: KeyPairType.x25519);
 
-    final algorithm = X25519();
 
     // X3DH Key Agreement
     final sharedSecret1 = await algorithm.sharedSecretKey(
       keyPair: localIdentityKeyPair,
       remotePublicKey: remoteSignedPreKey,
     );
+
     final sharedSecret2 = await algorithm.sharedSecretKey(
-      keyPair: localSignedPreKeyPair,
+      keyPair: localEphemeralKeyPair,
       remotePublicKey: remoteIdentityKey,
     );
+
     final sharedSecret3 = await algorithm.sharedSecretKey(
-      keyPair: localIdentityKeyPair,
-      remotePublicKey: remoteOneTimePreKey,
+      keyPair: localEphemeralKeyPair,
+      remotePublicKey: remoteSignedPreKey,
     );
 
-    // Combine shared secrets
+    final sharedSecret4 = await algorithm.sharedSecretKey(
+      keyPair: localEphemeralKeyPair,
+      remotePublicKey: remoteOneTimePreKey,
+    );
     final sharedSecretBytes1 = await sharedSecret1.extractBytes();
     print("shared secret 1 $sharedSecretBytes1");
     final sharedSecretBytes2 = await sharedSecret2.extractBytes();
     print("shared secret 2 $sharedSecretBytes2");
     final sharedSecretBytes3 = await sharedSecret3.extractBytes();
     print("shared secret 3 $sharedSecretBytes3");
+    final sharedSecretBytes4 = await sharedSecret4.extractBytes();
+    print("shared secret 4 $sharedSecretBytes4");
 
     final combinedSecretBytes = <int>[
       ...sharedSecretBytes1,
       ...sharedSecretBytes2,
       ...sharedSecretBytes3,
+      ...sharedSecretBytes4,
     ];
 
 
@@ -114,9 +130,12 @@ class X3DHHelper {
     final alicePreKeyBase64 = retrieveKeysResponse['alicePreKey'];
     final aliceIdentityKey = SimplePublicKey(base64Decode(aliceIdentityKeyBase64), type: KeyPairType.x25519);
     final alicePreKey = SimplePublicKey(base64Decode(alicePreKeyBase64), type: KeyPairType.x25519);
-
-
     final int indexOTPK = retrieveKeysResponse['index'];
+    print("object");
+    final aliceEphemeralKeyBase64 = retrieveKeysResponse['EphemeralKey'];
+    final aliceEphemeralKey = SimplePublicKey(base64Decode(aliceEphemeralKeyBase64), type: KeyPairType.x25519);
+     print(aliceEphemeralKey);
+    print("object");
 
     Future<String?> readFromSecureStoragee(String key) async {
       return await _secureStorage.read(key: key);
@@ -185,15 +204,24 @@ class X3DHHelper {
       keyPair: localSignedPreKeyPair,
       remotePublicKey: aliceIdentityKey,
     );
+    print("shared1");
     final sharedSecret2 = await algorithm.sharedSecretKey(
       keyPair: localIdentityKeyPair,
-      remotePublicKey: alicePreKey,
+      remotePublicKey: aliceEphemeralKey,
     );
+    print("shared2");
 
     final sharedSecret3 = await algorithm.sharedSecretKey(
-      keyPair: oneTimePreKeys[indexOTPK],
-      remotePublicKey: aliceIdentityKey,
+      keyPair: localSignedPreKeyPair,
+      remotePublicKey: aliceEphemeralKey,
     );
+    print("shared3");
+
+    final sharedSecret4 = await algorithm.sharedSecretKey(
+      keyPair: oneTimePreKeys[indexOTPK],
+      remotePublicKey: aliceEphemeralKey,
+    );
+    print("shared4");
 
 
 
@@ -204,11 +232,14 @@ class X3DHHelper {
     print("shared secret 2 $sharedSecretBytes2");
     final sharedSecretBytes3 = await sharedSecret3.extractBytes();
     print("shared secret 3 $sharedSecretBytes3");
+    final sharedSecretBytes4 = await sharedSecret4.extractBytes();
+    print("shared secret 3 $sharedSecretBytes4");
 
     final combinedSecretBytes = <int>[
       ...sharedSecretBytes1,
       ...sharedSecretBytes2,
       ...sharedSecretBytes3,
+      ...sharedSecretBytes4,
     ];
 
     //print(combinedSecretBytes);

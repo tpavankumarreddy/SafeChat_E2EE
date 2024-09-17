@@ -33,6 +33,10 @@ class _RegisterPageState extends State<RegisterPage> {
   int _remainingTime = 90;
   bool _showResendButton = false;
 
+  // State to manage whether password is obscured or not
+  bool _isObscured = true;
+  bool _isConfirmObscured = true;
+
   // Regular expression to check if string
   final RegExp passValid = RegExp(r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*\W)");
   double passwordStrength = 0;
@@ -176,25 +180,6 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       );
     }
-
-    // Handle OTP verification failure if needed
-    // if (returnedOTP == null) {
-    //   showDialog(
-    //     context: context,
-    //     builder: (context) => AlertDialog(
-    //       title: const Text("OTP Verification Failed"),
-    //       content: const Text("Please try again."),
-    //       actions: [
-    //         TextButton(
-    //           onPressed: () {
-    //             Navigator.pop(context);
-    //           },
-    //           child: const Text('Ok'),
-    //         ),
-    //       ],
-    //     ),
-    //   );
-    // }
   }
 
   @override
@@ -235,13 +220,34 @@ class _RegisterPageState extends State<RegisterPage> {
                 onChanged: (value) {},
               ),
               const SizedBox(height: 10),
-              MyTextField(
-                hintText: "Password",
-                obscuredText: true,
-                controller: _pwController,
-                onChanged: (value) {
-                  validatePassword(value); // Validate password in real-time
-                },
+              Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  MyTextField(
+                    hintText: "Password",
+                    obscuredText: _isObscured,
+                    controller: _pwController,
+                    onChanged: (value) {
+                      setState(() {
+                        validatePassword(value); // Validate password in real-time
+                      });
+                    },
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 18), // Adjust the padding here (5 pixels ~ 0.5 cm)
+                    child: IconButton(
+                      icon: Icon(
+                        _isObscured ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isObscured = !_isObscured; // Toggle visibility
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
               Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -283,29 +289,49 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
               const SizedBox(height: 10),
-              MyTextField(
-                hintText: "Confirm Password",
-                obscuredText: true,
-                controller: _confirmPwController,
-                onChanged: (value) {},
+              Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  MyTextField(
+                    hintText: "Confirm Password",
+                    obscuredText: _isConfirmObscured,
+                    controller: _confirmPwController,
+                    onChanged: (value) {},
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 18), // Adjust the padding here (5 pixels ~ 0.5 cm)
+                    child: IconButton(
+                      icon: Icon(
+                        _isConfirmObscured ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isConfirmObscured = !_isConfirmObscured; // Toggle confirm password visibility
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 10),
               MyButton(
-                text: "R E G I S T E R",
-                onTap: () => register(context),
+                text: "Register",
+                onTap: () async {
+                  await register(context);
+                },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Already have an account? "),
+                  const Text("Already have an account?"),
+                  const SizedBox(width: 4),
                   GestureDetector(
                     onTap: widget.onTap,
                     child: const Text(
-                      "Login Now!!",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      "Login here!",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],

@@ -234,7 +234,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     },
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(right: 18), // Adjust the padding here (5 pixels ~ 0.5 cm)
+                    padding: const EdgeInsets.only(right: 20), // Adjust the padding here (5 pixels ~ 0.5 cm)
                     child: IconButton(
                       icon: Icon(
                         _isObscured ? Icons.visibility_off : Icons.visibility,
@@ -299,7 +299,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     onChanged: (value) {},
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(right: 18), // Adjust the padding here (5 pixels ~ 0.5 cm)
+                    padding: const EdgeInsets.only(right: 20), // Adjust the padding here (5 pixels ~ 0.5 cm)
                     child: IconButton(
                       icon: Icon(
                         _isConfirmObscured ? Icons.visibility_off : Icons.visibility,

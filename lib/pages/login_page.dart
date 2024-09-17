@@ -6,59 +6,33 @@ import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-class LoginPage extends StatelessWidget{
-
-  //email, pw controllers
-  final TextEditingController _emailController=TextEditingController();
-  final TextEditingController _pwController=TextEditingController();
-
+class LoginPage extends StatefulWidget {
   final void Function()? onTap;
 
+  LoginPage({Key? key, required this.onTap}) : super(key: key);
 
- LoginPage({super.key, required this.onTap});
+  @override
+  _LoginPageState createState() => _LoginPageState();
+}
 
- //login method
+class _LoginPageState extends State<LoginPage> {
+  // Controllers for email and password fields
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _pwController = TextEditingController();
+
+  // State for controlling password visibility
+  bool _isObscured = true;
+
+  // Login method
   void login(BuildContext context) async {
-    // auth service
     final authService = AuthService();
 
-    //try login
+    // Try login
     try {
-      await authService.signInWithEmailPassword(_emailController.text, _pwController.text);
-
-    }
-
-    //catch errors
-    catch (e) {
-      showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(e.toString(), style: const TextStyle(fontSize: 18)),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Ok'),
-              ),
-            ],
-          ),
-      );
-
-    }
-
-  }
-  Future<void> signInWithGoogle(BuildContext context) async {
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return;
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
+      await authService.signInWithEmailPassword(
+          _emailController.text, _pwController.text);
     } catch (e) {
+      // Show error dialog
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -76,6 +50,37 @@ class LoginPage extends StatelessWidget{
     }
   }
 
+  // Sign in with Google method
+  Future<void> signInWithGoogle(BuildContext context) async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth =
+      await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(e.toString(), style: const TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,89 +88,115 @@ class LoginPage extends StatelessWidget{
       backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          //logo
-          Icon(Icons.security,
-          size : 80,
-          color: Theme.of(context).colorScheme.primary,
-          ),
-
-          const SizedBox(height: 50),
-          //welcome back
-          Text("Welcome to SafeChat ",
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-            fontSize:20,
-            fontWeight: FontWeight.bold,
-          ),
-          ),
-
-          const SizedBox(height: 30),
-
-
-          Text("Let's get started.",
-
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontSize:20,
-            ),
-          ),
-          const SizedBox(height: 15),
-
-          //email
-
-          MyTextField(
-            hintText: "Email",
-            obscuredText: false,
-            controller: _emailController, onChanged: (value) {  },
-          ),
-
-          const SizedBox(height: 10),
-          //pw
-
-          MyTextField(
-            hintText: "Password",
-            obscuredText: true,
-            controller: _pwController, onChanged: (value) {  },
-          ),
-
-          const SizedBox(height: 20),
-
-          //login
-
-          MyButton(
-            text: "L O G I N",
-            onTap: () => login(context),
-            fontSize: 18,
-          ),
-
-          const SizedBox(height: 20),
-          SignInButton(
-            Buttons.Google,
-            text: "Sign in with Google",
-            onPressed: () => signInWithGoogle(context),
-          ),
-
-          const SizedBox(height: 20),
-          //register
-          Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text("Not a member? "),
-            GestureDetector(
-              onTap: onTap,
-              child: const Text("Register now!!",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
+            // Logo
+            Icon(
+              Icons.security,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+
+            const SizedBox(height: 50),
+
+            // Welcome text
+            Text(
+              "Welcome to SafeChat",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
+
+            const SizedBox(height: 30),
+
+            Text(
+              "Let's get started.",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontSize: 20,
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // Email TextField
+            MyTextField(
+              hintText: "Email",
+              obscuredText: false,
+              controller: _emailController,
+              onChanged: (value) {},
+            ),
+
+            const SizedBox(height: 10),
+
+            // Password TextField with visibility toggle aligned 2cm to the left
+            Stack(
+              alignment: Alignment.centerRight,
+              children: [
+                MyTextField(
+                  hintText: "Password",
+                  obscuredText: _isObscured,
+                  controller: _pwController,
+                  onChanged: (value) {},
+                ),
+                Positioned(
+                  right: 20.0, // Approximately 2 cm (60 pixels)
+                  child: IconButton(
+                    icon: Icon(
+                      _isObscured ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isObscured = !_isObscured;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Login button
+            MyButton(
+              text: "L O G I N",
+              onTap: () => login(context),
+              fontSize: 18,
+            ),
+
+            const SizedBox(height: 20),
+
+            // Sign in with Google button
+            SignInButton(
+              Buttons.Google,
+              text: "Sign in with Google",
+              onPressed: () => signInWithGoogle(context),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Register prompt
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Not a member? "),
+                GestureDetector(
+                  onTap: widget.onTap,
+                  child: const Text(
+                    "Register now!!",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
-          ),
-        ],
-      ),
+        ),
       ),
     );
   }

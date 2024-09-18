@@ -243,7 +243,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       onPressed: () {
                         setState(() {
-                          _isObscured = !_isObscured; // Toggle visibility
+                          _isObscured = !_isObscured; // Toggle Visibility
                         });
                       },
                     ),

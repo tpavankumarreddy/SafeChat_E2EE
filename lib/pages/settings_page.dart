@@ -1,9 +1,8 @@
-import 'package:SafeChat/pages/themes_data.dart';
 import 'package:flutter/material.dart';
-import 'privacy_page.dart';  // Import the PrivacyPage
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';  // Assuming you use this for saving preferences
-
+import 'privacy_page.dart';
+import 'package:SafeChat/pages/themes_data.dart';
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -18,49 +17,50 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _loadBiometricPreference();
+    _loadPreferences();
   }
 
-  Future<void> _loadBiometricPreference() async {
+  // Load biometric preference from shared preferences
+  Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _isBiometricEnabled = prefs.getBool('biometric_enabled') ?? false;
     });
   }
 
+  // Save the biometric preference
   Future<void> _saveBiometricPreference(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('biometric_enabled', value);
+    setState(() {
+      _isBiometricEnabled = value;
+    });
   }
 
-  Future<void> _authenticateWithBiometrics() async {
-    try {
+  // Enable or disable biometric authentication
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      // If enabling biometrics, verify with the user first
       final canCheckBiometrics = await _auth.canCheckBiometrics;
       if (canCheckBiometrics) {
         final isAuthenticated = await _auth.authenticate(
-          localizedReason: 'Please authenticate to enable biometric settings',
-          options: const AuthenticationOptions(
-            biometricOnly: true,
-          ),
+          localizedReason: 'Enable biometric app lock',
+          options: const AuthenticationOptions(biometricOnly: true),
         );
 
         if (isAuthenticated) {
-          // Handle successful biometric authentication
-          print("Biometric authentication successful");
-        } else {
-          // Handle failed biometric authentication
-          print("Biometric authentication failed");
+          _saveBiometricPreference(true);
         }
       }
-    } catch (e) {
-      print(e);
+    } else {
+      _saveBiometricPreference(false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           ListTile(
@@ -84,18 +84,13 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           SwitchListTile(
-            title: const Text('Enable Biometric Registration'),
+            title: const Text('Enable App Lock'),
             value: _isBiometricEnabled,
             onChanged: (bool value) async {
-              if (value) {
-                await _authenticateWithBiometrics();
-              }
-              setState(() {
-                _isBiometricEnabled = value;
-                _saveBiometricPreference(value);
-              });
+              await _toggleBiometric(value);
             },
           ),
+          // Other settings...
         ],
       ),
     );

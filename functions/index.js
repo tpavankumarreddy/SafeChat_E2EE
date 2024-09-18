@@ -1,95 +1,150 @@
+/* eslint-disable no-unused-vars */
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nacl = require("tweetnacl");
 nacl.util = require("tweetnacl-util");
 
+// Initialize Firebase Admin
 admin.initializeApp();
-/**
- * Retrieves the server's public and private keys from Firestore.
- * @return {Promise<Object>} - A promise that res private keys.
- * @throws {functions.https.HttpsError} - Throws an error i.
- */
-async function getServerKeys() {
-  const docRef = admin.firestore().collection("server_keys")
-      .doc("vZmAicjwUeWBJQeKttBL");
-  const doc = await docRef.get();
 
-  if (!doc.exists) {
-    throw new functions.https.HttpsError("not-found", "Server keys not found");
-  }
-
+// Generate keys once and store globally
+const globalKeys = (() => {
+  const keyPair = nacl.box.keyPair();
   return {
-    publicKey: nacl.util.decodeBase64(doc.data().public_key),
-    privateKey: nacl.util.decodeBase64(doc.data().private_key),
+    publicKey: keyPair.publicKey,
+    privateKey: keyPair.secretKey,
   };
+})();
+
+/**
+ * Converts a Uint8Array to a Base64 string.
+ * @param {Uint8Array} uint8Array - The Uint8Array to convert.
+ * @return {string} - The Base64-encoded string.
+ */
+function uint8ArrayToBase64(uint8Array) {
+  const binaryString = String.fromCharCode.apply(null, uint8Array);
+  return Buffer.from(binaryString, "binary").toString("base64");
+}
+
+/**
+ * Converts a Base64 string to a Uint8Array.
+ * @param {string} base64 - The Base64-encoded string to convert.
+ * @return {Uint8Array} - The resulting Uint8Array.
+ */
+function base64ToUint8Array(base64) {
+  const binaryString = Buffer.from(base64, "base64").toString("binary");
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Encrypts a nonce using the provided public key and the server's private key.
+ * @param {Uint8Array} nonce - The nonce to be encrypted.
+ * @param {Uint8Array} userPublicKey - The user's public key.
+ * @return {Uint8Array} - The encrypted nonce.
+ */
+function encryptNonce(nonce, userPublicKey) {
+  // Ensure nonce and userPublicKey are Uint8Array
+  if (!(nonce instanceof Uint8Array)) {
+    throw new Error("nonce must be a Uint8Array");
+  }
+  if (!(userPublicKey instanceof Uint8Array)) {
+    throw new Error("userPublicKey must be a Uint8Array");
+  }
+  return nacl.box(
+      nonce,
+      nacl.randomBytes(nacl.box.nonceLength), // Use a nonce
+      userPublicKey,
+      globalKeys.privateKey,
+  );
 }
 
 
-exports.computeYTimesXPubPK = functions.https.onCall(async (data, context) => {
+/**
+ * Decrypts the encrypted nonce using the provided.
+ * @param {Uint8Array} encryptedNonce - The encrypted nonce.
+ * @param {Uint8Array} receivedNonce - The nonce used during encryption.
+ * @param {Uint8Array} userPrivateKey - The user's private key.
+ * @return {Uint8Array} - The decrypted nonce.
+ */
+function decryptNonce(encryptedNonce, receivedNonce, userPrivateKey) {
+  // Ensure encryptedNonce, receivedNonce, and userPrivateKey are Uint8Array
+  if (!(encryptedNonce instanceof Uint8Array)) {
+    throw new Error("encryptedNonce must be a Uint8Array");
+  }
+  if (!(receivedNonce instanceof Uint8Array)) {
+    throw new Error("receivedNonce must be a Uint8Array");
+  }
+  if (!(userPrivateKey instanceof Uint8Array)) {
+    throw new Error("userPrivateKey must be a Uint8Array");
+  }
+  return nacl.box.open(
+      encryptedNonce,
+      nacl.randomBytes(nacl.box.nonceLength), // Use a fresh nonce
+      receivedNonce,
+      userPrivateKey,
+  );
+}
+
+
+exports.userpub1 = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated",
         "The function must be called while authenticated.");
   }
 
   const uid = data.uid;
-  const docRef =admin.firestore().collection("usersPreKeyValidations").doc(uid);
+  const docRef = admin.firestore().collection("usersPreKeyValidations").
+      doc(uid);
   const doc = await docRef.get();
 
   if (!doc.exists) {
     throw new functions.https.HttpsError("not-found", "Document not found");
   }
 
-  const {publicKey, privateKey} = await getServerKeys();
-  console.log(publicKey);
   const nonce = nacl.randomBytes(24);
-  const xPubPK = nacl.util.decodeBase64(doc.data()["PreKey Public"]);
+  const userPublicKey = new Uint8Array(doc.data()["PreKey Public"]);
 
-  const encryptedNonce = nacl.box(
-      nonce,
-      nonce, // The nonce should be reused here for box and box.open
-      xPubPK,
-      privateKey,
-  );
+  const encryptedNonce = encryptNonce(nonce, userPublicKey);
 
   await docRef.update({
-    "Encrypted Nonce": nacl.util.encodeBase64(encryptedNonce),
+    "Encrypted Nonce": uint8ArrayToBase64(encryptedNonce),
   });
 
-  return {success: true, nonce: nacl.util.encodeBase64(nonce)};
+  return {success: true, nonce: nonce};
 });
 
-exports.verifyYTimesPubPK = functions.https.onCall(async (data, context) => {
+exports.userpub2 = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated",
         "The function must be called while authenticated.");
   }
 
   const uid = data.uid;
-  const docRef =admin.firestore().collection("usersPreKeyValidations").doc(uid);
+  const docRef = admin.firestore().collection("usersPreKeyValidations").
+      doc(uid);
   const doc = await docRef.get();
 
   if (!doc.exists) {
     throw new functions.https.HttpsError("not-found", "Document not found");
   }
 
-  const {privateKey} = await getServerKeys();
+  const receivedNonceMinusOne = data.nonceMinusOne;
+  const encryptedNonce = base64ToUint8Array(doc.data()["Encrypted Nonce"]);
 
-  const receivedNonceMinusOne = nacl.util.decodeBase64(data.nonceMinusOne);
-  const encryptedNonce = nacl.util.decodeBase64(doc.data()["Encrypted Nonce"]);
-
-  const nonce = nacl.randomBytes(24);
-
-  const decryptedNonce = nacl.box.open(
-      encryptedNonce,
-      nonce, // The same nonce used during encryption
-      receivedNonceMinusOne,
-      privateKey,
-  );
+  const decryptedNonce = decryptNonce(encryptedNonce,
+      nacl.randomBytes(nacl.box.nonceLength), globalKeys.publicKey);
 
   let isValid = false;
   if (decryptedNonce) {
-    const expectedNonceMinusOne=decryptedNonce.map((byte) => (byte - 1) & 0xFF);
-    isValid= nacl.util.encodeBase64(expectedNonceMinusOne)===data.nonceMinusOne;
+    const expectedNonceMinusOne = decryptedNonce.map((byte) =>
+      (byte - 1) & 0xFF);
+    isValid = expectedNonceMinusOne.every((value, index) =>
+      value === data.nonceMinusOne[index]);
   }
 
   await docRef.update({
@@ -98,6 +153,7 @@ exports.verifyYTimesPubPK = functions.https.onCall(async (data, context) => {
 
   return {success: true, verified: isValid};
 });
+
 
 exports.checkEmailExists = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -251,7 +307,7 @@ exports.initiateX3DH = functions.https.onCall(async (data, context) => {
 //
 //      // Wrap with PEM headers and footers
 //      const pemKey =
-//      `-----BEGIN-----\n${formattedKey}\n-----END PUBLIC KEY-----\n`;
+//      -----BEGIN-----\n${formattedKey}\n-----END PUBLIC KEY-----\n;
 //
 //      return pemKey;
 //    }
@@ -286,4 +342,5 @@ exports.retrieveAliceKeys = functions.https.onCall(async (data, context) => {
     };
   }
 });
+/* eslint-disable no-unused-vars */
 

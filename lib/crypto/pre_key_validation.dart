@@ -127,7 +127,7 @@ class PreKeyValidation{
 
     try {
     // Call the cloud function
-    HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('computeYTimesXPubPK');
+    HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('userpub1');
     final response = await callable.call({'uid': uid});
 
     if (response.data['success']) {
@@ -144,7 +144,7 @@ class PreKeyValidation{
 
     try {
       // Call the cloud function
-      HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('verifyYTimesPubPK');
+      HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('userpub2');
       final response = await callable.call({'uid': uid});
 
       if (response.data['success']) {

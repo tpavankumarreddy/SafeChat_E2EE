@@ -8,6 +8,7 @@ import 'package:email_otp/email_otp.dart';
 import '../services/auth/otp_service.dart';
 import 'login_page.dart';
 import 'otp_page.dart';
+import 'OAuth_page.dart'; // Import OAuth page
 
 class RegisterPage extends StatefulWidget {
   final void Function()? onTap;
@@ -322,6 +323,18 @@ class _RegisterPageState extends State<RegisterPage> {
                 },
               ),
               const SizedBox(height: 10),
+              MyButton(
+                text: "Continue with OAuth",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => OAuthPage(onTap: () { OAuthPage; },), // Redirect to OAuth Page
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -343,3 +356,4 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
+

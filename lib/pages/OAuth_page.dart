@@ -185,7 +185,7 @@ class _OAuthPageState extends State<OAuthPage> {
 
             const SizedBox(height: 20),
 
-            // Login prompt
+            //Login Page
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

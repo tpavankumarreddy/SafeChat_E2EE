@@ -61,7 +61,8 @@ dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_password_strength: ^0.1.6
   get: ^4.6.5
-
+  qr_flutter: ^4.1.0  # for generating QR codes
+  qr_code_scanner: ^1.0.1  # for scanning QR codes
 
 
 
@@ -100,6 +101,7 @@ flutter:
   assets:
     - lib/images/
     - assets/
+    - assets/images/otp_verification.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

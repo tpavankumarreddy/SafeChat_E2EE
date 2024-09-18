@@ -125,7 +125,7 @@ class _OAuthPageState extends State<OAuthPage> {
 
             // Welcome text
             Text(
-              "OAuth Verification",
+              "OAuth Registration",
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
                 fontSize: 20,
@@ -199,20 +199,6 @@ class _OAuthPageState extends State<OAuthPage> {
 
             const SizedBox(height: 20),
 
-            //Login Page
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Already a member? "),
-                GestureDetector(
-                  onTap: widget.onTap,
-                  child: const Text(
-                    "Login here!",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

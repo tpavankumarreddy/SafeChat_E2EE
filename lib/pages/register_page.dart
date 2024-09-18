@@ -328,9 +328,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => OAuthPage(onTap: () { OAuthPage; },), // Redirect to OAuth Page
-                    ),
+                    MaterialPageRoute(builder: (context) => OAuthPage(onTap: widget.onTap)),
                   );
                 },
               ),

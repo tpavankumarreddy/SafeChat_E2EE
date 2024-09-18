@@ -178,8 +178,13 @@ class _OTPPageState extends State<OTPPage> {
       appBar: AppBar(title: Text('OTP Verification')),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start  ,
           children: [
+            SizedBox(height: 40),
+
+            Image.asset( 'assets/images/otp_verification.jpeg',   ),
+            SizedBox(height: 20),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(6, (index) {

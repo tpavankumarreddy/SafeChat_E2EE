@@ -155,7 +155,7 @@ class _OAuthPageState extends State<OAuthPage> {
 
             const SizedBox(height: 20),
 
-            // Google Sign-In button
+            // Google Sign-In buttons
             ElevatedButton(
               onPressed: _isButtonEnabled ? () => signInWithGoogle(context) : null,
               style: ElevatedButton.styleFrom(
@@ -164,11 +164,18 @@ class _OAuthPageState extends State<OAuthPage> {
                     ? Theme.of(context).colorScheme.primary
                     : Colors.grey,
                 textStyle: const TextStyle(fontSize: 18),
+              ).copyWith(
+                foregroundColor: MaterialStateProperty.resolveWith<Color>(
+                      (Set<MaterialState> states) {
+                    return _isButtonEnabled ? Colors.white : Colors.black;
+                  },
+                ),
               ),
               child: const Text("Register with Google"),
-            ),
+            )
+,
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
 
             // GitHub Sign-In button
             ElevatedButton(
@@ -176,12 +183,19 @@ class _OAuthPageState extends State<OAuthPage> {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 backgroundColor: _isButtonEnabled
-                    ? Colors.black
+                    ? Theme.of(context).colorScheme.primary
                     : Colors.grey,
                 textStyle: const TextStyle(fontSize: 18),
+              ).copyWith(
+                foregroundColor: MaterialStateProperty.resolveWith<Color>(
+                      (Set<MaterialState> states) {
+                    return _isButtonEnabled ? Colors.white : Colors.black;
+                  },
+                ),
               ),
               child: const Text("Register with GitHub"),
-            ),
+            )
+            ,
 
             const SizedBox(height: 20),
 
@@ -191,20 +205,10 @@ class _OAuthPageState extends State<OAuthPage> {
               children: [
                 const Text("Already a member? "),
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => LoginPage(onTap: () { LoginPage; },), // Redirect to login page
-                      ),
-                    );
-                  }, // Redirect to login page
+                  onTap: widget.onTap,
                   child: const Text(
-                    "Login now!",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    "Login here!",
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],

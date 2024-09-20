@@ -4,7 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter/material.dart';
-import 'package:pointycastle/api.dart';
+import 'package:pointycastle/api.dart' as pc;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import '../components/user_tile.dart';
@@ -12,6 +12,7 @@ import '../crypto/X3DHHelper.dart';
 import '../data/database_helper.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:typed_data';
+
 class AddressBookPage extends StatefulWidget {
   const AddressBookPage({super.key, required this.onEmailsChanged});
 
@@ -31,7 +32,7 @@ Uint8List decryptWithPrivateKey(String encryptedData, String privateKeyPem) {
   final privateKey = parser.parse(privateKeyPem) as RSAPrivateKey;
 
   final cipher = RSAEngine()
-    ..init(false, PrivateKeyParameter<RSAPrivateKey>(privateKey));
+    ..init(false, pc.PrivateKeyParameter<RSAPrivateKey>(privateKey));
 
   final decryptedBytes = cipher.process(base64Decode(encryptedData));
   return decryptedBytes;
@@ -95,8 +96,35 @@ class _AddressBookPageState extends State<AddressBookPage> {
             ],
           ),
           actions: <Widget>[
+
             TextButton(
               onPressed: () async {
+
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return Center(  // Ensures the dialog is centered and doesn't get cut off
+                      child: Dialog(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0), // Removed 'const' only from Padding widget
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(width: 16), // Added spacing between spinner and text
+                              Text('Checking email, please wait...'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+
+
+
+
                 String email = _emailController.text;
                 String nickname = nicknameController.text;
 
@@ -200,6 +228,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
                     }
 
 
+                    Navigator.of(context).pop();
 
                     setState(() {
                       _emails.add(nickname); // Add the nickname to the list
@@ -207,6 +236,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
 
                     });
                   } else {
+                    Navigator.of(context).pop();
                     print("Email does not exist.");
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Email address does not exist.'),
@@ -216,6 +246,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
                   nicknameController.clear(); // Clear the nickname field
                   Navigator.of(context).pop(); // Close the dialog
                 } catch (e) {
+                  Navigator.of(context).pop();
                   print("Error checking email: $e");
                 }
               },

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:SafeChat/pages/settings_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,6 +15,7 @@ import 'chat_page.dart';
 import '../data/database_helper.dart';
 
 class HomePage extends StatefulWidget {
+
   const HomePage({super.key});
 
   @override
@@ -21,7 +23,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String? userEmail;
   final x3dhHelper = X3DHHelper();
+  final settings = SettingsPageState();
   final AuthService _authService = AuthService();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final ChatService chatService = ChatService();
@@ -31,12 +35,19 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    userEmail = getUserEmail();
     _scaffoldKey = GlobalKey<ScaffoldState>();
+    _checkPrivateKeysAndPrompt(context);
     _loadAddressBookEmails(); // Load address book emails with nicknames from SQLite database
   }
 
   User? getCurrentUser() {
     return _authService.getCurrentUser();
+  }
+
+  String? getUserEmail() {
+    User? user = getCurrentUser();
+    return user?.email;  // Access the email if user is not null
   }
 
   // Function to handle address book emails change
@@ -53,6 +64,52 @@ class _HomePageState extends State<HomePage> {
       addressBookEmails = emailNicknames.map<String>((entry) => (entry['nickname'] ?? entry['email']) as String).toList();
     });
   }
+
+  Future<bool> _hasPrivateKeys(String userId) async {
+    String? userPreKeyPrivateBase64 = await _secureStorage.read(key: "identityKeyPairPrivate$userEmail");
+    if (userPreKeyPrivateBase64 != null && userPreKeyPrivateBase64.isNotEmpty) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _checkPrivateKeysAndPrompt(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      bool hasKeys = await _hasPrivateKeys(user.uid);
+      if (!hasKeys) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('No Private Keys Found'),
+              content: const Text('You do not have private keys. Do you want to log out or delete your account and Register again?'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    FirebaseAuth.instance.signOut();
+                  },
+                  child: const Text('Log Out'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await settings.deleteAccount(context);
+                  },
+                  child: const Text('Delete Account'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
+  }
+
+
+
+
   Future<String?> getUidForEmail(String email) async {
     try {
       final querySnapshot = await FirebaseFirestore.instance

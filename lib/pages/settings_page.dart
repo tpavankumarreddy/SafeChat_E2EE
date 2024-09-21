@@ -13,10 +13,10 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  _SettingsPageState createState() => _SettingsPageState();
+  SettingsPageState createState() => SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class SettingsPageState extends State<SettingsPage> {
   bool _isBiometricEnabled = false;
   final LocalAuthentication _auth = LocalAuthentication();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -66,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // Function to delete user's Firestore data
-  Future<void> _deleteUserData(String userId) async {
+  Future<void> deleteUserData(String userId) async {
     try {
       await _firestore.collection("user's").doc(userId).delete();
       // Delete other collections or documents related to the user if needed
@@ -77,7 +77,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // Function to delete user account and associated data
-  Future<void> _deleteAccount(BuildContext parentContext) async {
+  Future<void> deleteAccount(BuildContext parentContext) async {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -99,7 +99,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                   if (userId != null) {
                     // Delete user data from Firestore
-                    await _deleteUserData(userId);
+                    await deleteUserData(userId);
                   }
 
                   // Delete the user account
@@ -143,40 +143,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
 
-
-
-
-
-
-  // Confirm before deleting account
-  // Future<void> _confirmDeleteAccount(BuildContext context) async {
-  //   showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return AlertDialog(
-  //         title: const Text('Delete Account'),
-  //         content: const Text('Are you sure you want to delete your account and all associated data? This action cannot be undone. Note: Your chats will not be deleted.'),
-  //         actions: [
-  //           TextButton(
-  //             onPressed: () {
-  //               Navigator.of(context).pop();
-  //             },
-  //             child: const Text('Cancel'),
-  //           ),
-  //           TextButton(
-  //             onPressed: () async {
-  //               Navigator.of(context).pop();
-  //               await _deleteAccount(context);
-  //             },
-  //             child: const Text('Delete'),
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,7 +180,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.delete),
             title: const Text('Delete Account'),
             onTap: () async {
-              await _deleteAccount(context);
+              await deleteAccount(context);
             },
           ),
         ],

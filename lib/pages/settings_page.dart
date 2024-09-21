@@ -1,8 +1,14 @@
+import 'package:SafeChat/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'login_page.dart';
 import 'privacy_page.dart';
 import 'package:SafeChat/pages/themes_data.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -13,6 +19,8 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _isBiometricEnabled = false;
   final LocalAuthentication _auth = LocalAuthentication();
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -57,6 +65,118 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  // Function to delete user's Firestore data
+  Future<void> _deleteUserData(String userId) async {
+    try {
+      await _firestore.collection("user's").doc(userId).delete();
+      // Delete other collections or documents related to the user if needed
+      // Example: await _firestore.collection('user_messages').doc(userId).delete();
+    } catch (e) {
+      throw Exception('Error deleting user data: $e');
+    }
+  }
+
+  // Function to delete user account and associated data
+  Future<void> _deleteAccount(BuildContext parentContext) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text('Are you sure you want to delete your account and all associated data? This action cannot be undone. Note: Your chats will not be deleted.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  final userId = _firebaseAuth.currentUser?.uid;
+
+                  if (userId != null) {
+                    // Delete user data from Firestore
+                    await _deleteUserData(userId);
+                  }
+
+                  // Delete the user account
+                  await FirebaseAuth.instance.currentUser?.delete();
+
+                  print("account deleted");
+                  // Ensure you're using the valid parentContext to show the dialog
+                  if (!mounted) return;
+
+                  showDialog(
+                    context: parentContext,  // Use parentContext here
+                    builder: (context) => AlertDialog(
+                      title: const Text("Account Deleted"),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MyApp(),
+                              ),
+                            );
+                          },
+                          child: const Text('Ok'),
+                        ),
+                      ],
+                    ),
+                  );
+                } catch (e) {
+                  print('Error deleting account: $e');
+                }
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+  }
+
+
+
+
+
+
+
+  // Confirm before deleting account
+  // Future<void> _confirmDeleteAccount(BuildContext context) async {
+  //   showDialog(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         title: const Text('Delete Account'),
+  //         content: const Text('Are you sure you want to delete your account and all associated data? This action cannot be undone. Note: Your chats will not be deleted.'),
+  //         actions: [
+  //           TextButton(
+  //             onPressed: () {
+  //               Navigator.of(context).pop();
+  //             },
+  //             child: const Text('Cancel'),
+  //           ),
+  //           TextButton(
+  //             onPressed: () async {
+  //               Navigator.of(context).pop();
+  //               await _deleteAccount(context);
+  //             },
+  //             child: const Text('Delete'),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,7 +210,13 @@ class _SettingsPageState extends State<SettingsPage> {
               await _toggleBiometric(value);
             },
           ),
-          // Other settings...
+          ListTile(
+            leading: const Icon(Icons.delete),
+            title: const Text('Delete Account'),
+            onTap: () async {
+              await _deleteAccount(context);
+            },
+          ),
         ],
       ),
     );

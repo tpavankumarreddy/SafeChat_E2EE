@@ -12,11 +12,12 @@ class AuthService {
     return _auth.currentUser;
   }
 
+  bool isLoggedIn = false;
   // Sign in
   Future<UserCredential> signInWithEmailPassword(String email, String password) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(email: email, password: password);
-
+      isLoggedIn = true;
       await initializeKeys(userCredential.user!.uid);
 
 

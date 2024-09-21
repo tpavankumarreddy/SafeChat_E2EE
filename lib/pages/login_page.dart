@@ -41,55 +41,6 @@ class _LoginPageState extends State<LoginPage> {
     User? user = getCurrentUser();
     return user?.email;  // Access the email if user is not null
   }
-  void initState() {
-    userEmail = getUserEmail();
-    _checkPrivateKeysAndPrompt(context);
-
-  }
-
-
-  Future<bool> _hasPrivateKeys(String userId) async {
-    String? userPreKeyPrivateBase64 = await _secureStorage.read(key: "identityKeyPairPrivate$userEmail");
-    if (userPreKeyPrivateBase64 != null && userPreKeyPrivateBase64.isNotEmpty) {
-      return true;
-    }
-    return false;
-  }
-
-  Future<void> _checkPrivateKeysAndPrompt(BuildContext context) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      bool hasKeys = await _hasPrivateKeys(user.uid);
-      if (!hasKeys) {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('No Private Keys Found'),
-              content: const Text('You do not have private keys. Do you want to log out or delete your account and Register again?'),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    FirebaseAuth.instance.signOut();
-                  },
-                  child: const Text('Log Out'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await settings.deleteAccount(context);
-                  },
-                  child: const Text('Delete Account'),
-                ),
-              ],
-            );
-          },
-        );
-      }
-    }
-  }
-
 
   // Login method
   void login(BuildContext context) async {
@@ -98,7 +49,6 @@ class _LoginPageState extends State<LoginPage> {
     // Try login
     try {
       await authService.signInWithEmailPassword(_emailController.text, _pwController.text);
-      _checkPrivateKeysAndPrompt(context);
 
     } catch (e) {
       // Show error dialog

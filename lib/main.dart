@@ -124,7 +124,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           home: _isAuthenticated || !_isBiometricEnabled
-              ? const AuthGate()
+              ? AuthGate()
               : _buildBiometricLockScreen(), // Show biometric lock screen if necessary
           theme: themeProvider.themedata,
         );

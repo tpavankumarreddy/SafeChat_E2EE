@@ -15,8 +15,9 @@ import 'chat_page.dart';
 import '../data/database_helper.dart';
 
 class HomePage extends StatefulWidget {
+   bool isLoggedIn; // Add this line
 
-  const HomePage({super.key});
+   HomePage({super.key, required this.isLoggedIn});
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -38,6 +39,9 @@ class _HomePageState extends State<HomePage> {
     userEmail = getUserEmail();
     _scaffoldKey = GlobalKey<ScaffoldState>();
     _loadAddressBookEmails(); // Load address book emails with nicknames from SQLite database
+    if(widget.isLoggedIn= true){
+      _checkPrivateKeysAndPrompt(context);
+    }
   }
 
   User? getCurrentUser() {

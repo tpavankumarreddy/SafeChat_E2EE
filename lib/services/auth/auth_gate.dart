@@ -1,3 +1,4 @@
+import 'package:SafeChat/services/auth/auth_service.dart';
 import 'package:SafeChat/services/auth/login_or_register.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -5,8 +6,9 @@ import 'package:flutter/material.dart';
 import '../../pages/home_page.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+   AuthGate({super.key});
 
+  final AuthService _authService = AuthService();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,7 +18,8 @@ class AuthGate extends StatelessWidget {
           //user is logged in
 
           if(snapshot.hasData){
-            return const HomePage();
+            return HomePage(isLoggedIn: _authService.isLoggedIn);
+
           }
           //user is logged out
           else{

@@ -1,7 +1,9 @@
+import 'package:SafeChat/pages/settings_page.dart';
 import 'package:SafeChat/services/auth/auth_service.dart';
 import 'package:SafeChat/components/my_button.dart';
 import 'package:SafeChat/components/my_textfield.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -15,13 +17,79 @@ class LoginPage extends StatefulWidget {
   _LoginPageState createState() => _LoginPageState();
 }
 
+
 class _LoginPageState extends State<LoginPage> {
   // Controllers for email and password fields
+  final settings = SettingsPageState();
+  final AuthService _authService = AuthService();
+
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+
+  String? userEmail;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _pwController = TextEditingController();
 
   // State for controlling password visibility
   bool _isObscured = true;
+
+  User? getCurrentUser() {
+    return _authService.getCurrentUser();
+  }
+
+  String? getUserEmail() {
+    User? user = getCurrentUser();
+    return user?.email;  // Access the email if user is not null
+  }
+  void initState() {
+    userEmail = getUserEmail();
+    _checkPrivateKeysAndPrompt(context);
+
+  }
+
+
+  Future<bool> _hasPrivateKeys(String userId) async {
+    String? userPreKeyPrivateBase64 = await _secureStorage.read(key: "identityKeyPairPrivate$userEmail");
+    if (userPreKeyPrivateBase64 != null && userPreKeyPrivateBase64.isNotEmpty) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _checkPrivateKeysAndPrompt(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      bool hasKeys = await _hasPrivateKeys(user.uid);
+      if (!hasKeys) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('No Private Keys Found'),
+              content: const Text('You do not have private keys. Do you want to log out or delete your account and Register again?'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    FirebaseAuth.instance.signOut();
+                  },
+                  child: const Text('Log Out'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await settings.deleteAccount(context);
+                  },
+                  child: const Text('Delete Account'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
+  }
+
 
   // Login method
   void login(BuildContext context) async {
@@ -29,8 +97,9 @@ class _LoginPageState extends State<LoginPage> {
 
     // Try login
     try {
-      await authService.signInWithEmailPassword(
-          _emailController.text, _pwController.text);
+      await authService.signInWithEmailPassword(_emailController.text, _pwController.text);
+      _checkPrivateKeysAndPrompt(context);
+
     } catch (e) {
       // Show error dialog
       showDialog(

@@ -37,7 +37,6 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     userEmail = getUserEmail();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    _checkPrivateKeysAndPrompt(context);
     _loadAddressBookEmails(); // Load address book emails with nicknames from SQLite database
   }
 

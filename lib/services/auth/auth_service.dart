@@ -27,9 +27,10 @@ class AuthService {
     }
   }
 
-  // Sign up
+  // Sign ups
   Future<UserCredential> signUpWithEmailPassword(String email, String password, String otp) async {
     try {
+      isLoggedIn = false;
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
 
       await _firestore.collection("user's").doc(userCredential.user!.uid).set({

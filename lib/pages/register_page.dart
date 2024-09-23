@@ -317,10 +317,11 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 10),
               MyButton(
-                text: "Register",
+                text: "R E G I S T E R",
                 onTap: () async {
                   await register(context);
                 },
+                fontSize: 18,
               ),
               const SizedBox(height: 10),
               MyButton(

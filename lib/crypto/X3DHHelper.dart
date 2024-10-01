@@ -25,6 +25,7 @@ class X3DHHelper {
 
     final algorithm = X25519();
     final localEphemeralKeyPair = await algorithm.newKeyPair();
+    final ephemeralKeyPrivate = localEphemeralKeyPair.extractPrivateKeyBytes();
     final EphemeralKey = await localEphemeralKeyPair.extractPublicKey();
     await _firestore.collection("pendingMessages")
         .doc("${remoteEmail}_$localEmail")
@@ -60,13 +61,13 @@ class X3DHHelper {
 
     // X3DH Key Agreement
     final sharedSecret1 = await algorithm.sharedSecretKey(
-      keyPair: localIdentityKeyPair,
-      remotePublicKey: remoteSignedPreKey,
+      keyPair: localEphemeralKeyPair,
+      remotePublicKey: remoteIdentityKey,
     );
 
     final sharedSecret2 = await algorithm.sharedSecretKey(
-      keyPair: localEphemeralKeyPair,
-      remotePublicKey: remoteIdentityKey,
+      keyPair: localIdentityKeyPair,
+      remotePublicKey: remoteSignedPreKey,
     );
 
     final sharedSecret3 = await algorithm.sharedSecretKey(
@@ -201,13 +202,13 @@ class X3DHHelper {
 
     // X3DH Key Agreement
     final sharedSecret1 = await algorithm.sharedSecretKey(
-      keyPair: localSignedPreKeyPair,
-      remotePublicKey: aliceIdentityKey,
+      keyPair: localIdentityKeyPair,
+      remotePublicKey: aliceEphemeralKey,
     );
     print("shared1");
     final sharedSecret2 = await algorithm.sharedSecretKey(
-      keyPair: localIdentityKeyPair,
-      remotePublicKey: aliceEphemeralKey,
+      keyPair: localSignedPreKeyPair,
+      remotePublicKey: aliceIdentityKey,
     );
     print("shared2");
 

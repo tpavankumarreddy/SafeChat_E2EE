@@ -8,11 +8,20 @@
     rootProject.buildDir = '../build'
     subprojects {
         project.buildDir = "${rootProject.buildDir}/${project.name}"
-    }
-    subprojects {
         project.evaluationDependsOn(':app')
+
+        // Set the namespace for each subproject
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace = project.group // Ensure namespace is set
+                }
+            }
+        }
     }
+
 
     tasks.register("clean", Delete) {
         delete rootProject.buildDir
     }
+

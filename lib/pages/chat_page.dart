@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:SafeChat/components/chat_bubble.dart';
-import 'package:SafeChat/components/my_textfield.dart';
+import 'package:flutter/material.dart';
 import 'package:SafeChat/services/auth/auth_service.dart';
 import 'package:SafeChat/services/chat/chat_services.dart';
-import 'package:flutter/material.dart';
 import 'package:SafeChat/crypto/Encryption_helper.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:SafeChat/components/chat_bubble.dart';
+import 'package:SafeChat/components/my_textfield.dart';
 
 class ChatPage extends StatefulWidget {
   final String receiverEmail;
@@ -32,28 +32,28 @@ class _ChatPageState extends State<ChatPage> {
 
   late final Stream<QuerySnapshot> _messageStream;
   List<Map<String, dynamic>> _decryptedMessages = [];
+  String _selectedAlgorithm = 'AES'; // Default encryption algorithm
 
   @override
   void initState() {
     super.initState();
     String senderID = _authService.getCurrentUser()!.uid;
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
-    //print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
   }
 
   Future<void> sendMessage() async {
-    //print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
-
     if (_messageController.text.isNotEmpty) {
-      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, widget.secretKey);
-      //print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
+      final encryptedData = await _encryptionHelper.encryptMessage(
+        _messageController.text,
+        widget.secretKey,
+        algorithm: _selectedAlgorithm, // Use the selected algorithm
+      );
 
       await _chatService.sendMessage(widget.receiverID, jsonEncode({
         'cipherText': encryptedData['cipherText'],
         'nonce': encryptedData['nonce'],
       }));
       _messageController.clear();
-      //print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
     }
   }
 
@@ -69,7 +69,6 @@ class _ChatPageState extends State<ChatPage> {
       try {
         messageData = jsonDecode(messageJson);
       } catch (e) {
-        //print("Error decoding message content: $e");
         continue;
       }
 
@@ -77,18 +76,22 @@ class _ChatPageState extends State<ChatPage> {
       final nonceBase64 = messageData['nonce'] ?? '';
 
       if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
-        //print("Error: Message content is missing");
         continue;
       }
 
       try {
-        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, widget.secretKey);
+        final decryptedMessage = await _encryptionHelper.decryptMessage(
+          cipherTextBase64,
+          nonceBase64,
+          widget.secretKey,
+          algorithm: _selectedAlgorithm, // Use the selected algorithm
+        );
         decryptedMessages.add({
           'message': decryptedMessage,
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
         });
       } catch (e) {
-        //print("Error decrypting message: $e");
+        // Handle decryption error
       }
     }
 
@@ -97,10 +100,43 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  void _onAlgorithmSelected(String algorithm) {
+    setState(() {
+      _selectedAlgorithm = algorithm;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.receiverEmail)),
+      appBar: AppBar(
+        title: Text(widget.receiverEmail),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'select_algorithm') {
+                _showAlgorithmSelection(context); // Show algorithm selection
+              } else if (value == 'option_2') {
+                // Handle Option 2
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem(
+                  value: 'select_algorithm',
+                  child: Text('Select Algorithm'),
+                ),
+                PopupMenuItem(
+                  value: 'option_2',
+                  child: Text('Option 2'),
+                ),
+                // Add more general options if needed
+              ];
+            },
+            icon: Icon(Icons.more_vert), // Three dots icon
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -112,30 +148,65 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  // Method to show algorithm selection dialog
+  void _showAlgorithmSelection(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Encryption Algorithm'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text('AES'),
+                leading: Radio<String>(
+                  value: 'AES',
+                  groupValue: _selectedAlgorithm,
+                  onChanged: (String? value) {
+                    setState(() {
+                      _selectedAlgorithm = value!;
+                    });
+                    Navigator.of(context).pop(); // Close dialog
+                  },
+                ),
+              ),
+              ListTile(
+                title: Text('ChaCha20'),
+                leading: Radio<String>(
+                  value: 'ChaCha20',
+                  groupValue: _selectedAlgorithm,
+                  onChanged: (String? value) {
+                    setState(() {
+                      _selectedAlgorithm = value!;
+                    });
+                    Navigator.of(context).pop(); // Close dialog
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildMessageList() {
     return StreamBuilder<QuerySnapshot>(
       stream: _messageStream,
       builder: (context, snapshot) {
-        //print('[ChatPage - _buildMessageList] StreamBuilder triggered');
-
         if (snapshot.hasError) {
-          //print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           return Center(child: Text("Error: ${snapshot.error}"));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          //print('[ChatPage - _buildMessageList] Waiting for data...');
           return Center(child: CircularProgressIndicator());
         }
 
         if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
-          //print('[ChatPage - _buildMessageList] No messages');
           return Center(child: Text("No messages yet"));
         }
 
-        //print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
-
-        // Decrypt messages and update the state
         _decryptMessages(snapshot.data!.docs);
 
         return ListView(
@@ -155,13 +226,14 @@ class _ChatPageState extends State<ChatPage> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-    child: Container(
-    alignment: alignment,
-    child: ChatBubble(
-    message: decryptedMessage,
-    isCurrentUser: isCurrentUser,
-    ),
-    ));
+      child: Container(
+        alignment: alignment,
+        child: ChatBubble(
+          message: decryptedMessage,
+          isCurrentUser: isCurrentUser,
+        ),
+      ),
+    );
   }
 
   Widget _buildUserInput() {

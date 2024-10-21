@@ -46,32 +46,35 @@ class _OTPPageState extends State<OTPPage> {
   Future<void> _verifyOTP() async {
     final otp = _otpControllers.map((controller) => controller.text).join();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Prevents dialog from being dismissed
-      builder: (BuildContext context) {
-        return const Dialog(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 20),
-                Text('Please wait, your keys generating...'),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
+    // Validate OTP before showing the loading dialog
     if (await EmailOTP.verifyOTP(otp: otp)) {
+      // Only show the loading dialog if the OTP is valid
+      showDialog(
+        context: context,
+        barrierDismissible: false, // Prevents dialog from being dismissed
+        builder: (BuildContext context) {
+          return const Dialog(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 20),
+                  Text('Please wait, your keys are being generated...'),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
       final auth = AuthService();
       try {
-        await auth.signUpWithEmailPassword(widget.email, widget.password,otp);
+        // Proceed with the registration process
+        await auth.signUpWithEmailPassword(widget.email, widget.password, otp);
 
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // Close the loading dialog
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -80,57 +83,67 @@ class _OTPPageState extends State<OTPPage> {
           ),
         );
         Navigator.of(context).popUntil((route) => route.isFirst);
-
       } on Exception catch (e) {
-        if (e.toString().contains('email-already-in-use')) {
-          showDialog(
-            context: context,
-            builder: (context) =>
-                AlertDialog(
-                  title: const Text("Email already in use"),
-                  content: const Text(
-                      "This email is already registered. Please login instead."),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                LoginPage(onTap: () {},),
-                          ),
-                        );
-                      },
-                      child: const Text('Login'),
-                    ),
-                  ],
-                ),
-          );
-        }
-        else {
-          showDialog(
-            context: context,
-            builder: (context) =>
-                AlertDialog(
-                  title: const Text("Registration Error"),
-                  content: Text(e.toString()),
-                  actions: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Ok'),
-                    ),
-                  ],
-                ),
-          );
-        }
+        Navigator.of(context).pop(); // Close the loading dialog on error
+        _handleError(e);
       }
+    } else {
+      // Show an alert for an invalid OTP, without showing the loading dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Invalid OTP."),
+          content: const Text("Please enter the correct OTP."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _handleError(Exception e) {
+    if (e.toString().contains('email-already-in-use')) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Email already in use"),
+          content: const Text(
+              "This email is already registered. Please login instead."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => LoginPage(onTap: () {}),
+                  ),
+                );
+              },
+              child: const Text('Login'),
+            ),
+          ],
+        ),
+      );
     } else {
       showDialog(
         context: context,
-        builder: (context) => const AlertDialog(
-          title: Text("Invalid OTP."),
+        builder: (context) => AlertDialog(
+          title: const Text("Registration Error"),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
         ),
       );
     }

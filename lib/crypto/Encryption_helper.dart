@@ -40,7 +40,7 @@ class EncryptionHelper {
 
     return {
       'cipherText': base64Encode(encrypted.cipherText),
-      'nonce': base64Encode(encrypted.nonce),
+      'nonce': base64Encode(nonce),
     };
   }
 
@@ -76,7 +76,7 @@ class EncryptionHelper {
 
     return {
       'cipherText': base64Encode(encrypted.cipherText),
-      'nonce': base64Encode(encrypted.nonce),
+      'nonce': base64Encode(nonce),
     };
   }
 

@@ -4,12 +4,14 @@ class MyTextField extends StatelessWidget {
   final String hintText;
   final bool obscuredText;
   final TextEditingController controller;
+  final Function(String) onChanged; // Added onChanged function parameter
 
   const MyTextField({
     super.key,
     required this.hintText,
-    required this.obscuredText,
-    required this.controller, required Null Function(dynamic value) onChanged,
+    this.obscuredText = false, // Set obscuredText as optional with a default value of false
+    required this.controller,
+    required this.onChanged, // Ensure onChanged is passed in
   });
 
   @override
@@ -19,6 +21,7 @@ class MyTextField extends StatelessWidget {
       child: TextField(
         obscureText: obscuredText,
         controller: controller,
+        onChanged: onChanged, // Hook up the onChanged callback to the TextField
         decoration: InputDecoration(
           enabledBorder: OutlineInputBorder(
             borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),

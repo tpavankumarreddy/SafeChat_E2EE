@@ -1,164 +1,199 @@
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:pinenacl/api.dart';
+import 'package:pinenacl/api/authenticated_encryption.dart';
+import 'package:pinenacl/api/signatures.dart';
+import 'package:pinenacl/digests.dart';
+import 'package:pinenacl/ed25519.dart';
+import 'package:pinenacl/encoding.dart';
+import 'package:pinenacl/key_derivation.dart';
+import 'package:pinenacl/message_authentication.dart';
+import 'package:pinenacl/tweetnacl.dart';
+import 'package:pinenacl/x25519.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cryptography/cryptography.dart' as crypto;
 import 'package:SafeChat/services/auth/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:x25519/x25519.dart';
-//import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-
-class PreKeyValidation{
-
+class IdentityKeyValidation {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _firebaseAuth = AuthService();
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+
   User? getCurrentUser() {
-    return _firebaseAuth.getCurrentUser();
+    User? user = _firebaseAuth.getCurrentUser();
+    print('Current User: $user');
+    return user;
   }
 
-
-  //final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  Future<void> validatePreKey(crypto.SimplePublicKey pubPK, String uid)async{
-
-    Uint8List generateSecureRandomScalar() {
-      final secureRandom = Random.secure();
-      final scalar = Uint8List(32);
-      for (int i = 0; i < scalar.length; i++) {
-        scalar[i] = secureRandom.nextInt(256);
-      }
-      return scalar;
+  Uint8List generateSecureRandomNonce() {
+    final secureRandom = Random.secure();
+    final nonce = Uint8List(24); // Change the nonce size as needed
+    for (int i = 0; i < nonce.length; i++) {
+      nonce[i] = secureRandom.nextInt(256);
     }
+    print('Generated nonce: ${base64Encode(nonce)}');
+    return nonce;
+  }
 
+  // Fetch the user's private key from Flutter Secure Storage using email
+  Future<PrivateKey> fetchUserPrivateKey(String email) async {
+    try {
+      String? privateKeyBase64 = await _secureStorage.read(
+          key: 'identityKeyPairPrivate$email');
+      if (privateKeyBase64 != null) {
+        print(
+            'Fetched user private key from secure storage: $privateKeyBase64');
+        return PrivateKey(base64Decode(privateKeyBase64));
+      } else {
+        throw Exception(
+            'Private key not found in secure storage for email: $email');
+      }
+    } catch (e) {
+      print('Error fetching user private key from secure storage: $e');
+      throw Exception('Failed to fetch private key');
+    }
+  }
+
+  Uint8List hexToUint8List(String hex) {
+    final length = hex.length ~/ 2;
+    final bytes = Uint8List(length);
+    for (var i = 0; i < length; i++) {
+      bytes[i] = int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16);
+    }
+    return bytes;
+  }
+
+  EncryptedMessage encryptNonce(Uint8List nonce, PrivateKey myPrivateKey,
+      PublicKey theirPublicKey) {
+    final box = Box(myPrivateKey: myPrivateKey, theirPublicKey: theirPublicKey);
+    final encryptedNonce = box.encrypt(nonce);
+    print('Encrypted Nonce: ${base64Encode(encryptedNonce.cipherText)}');
+    return encryptedNonce;
+  }
+
+  Uint8List decryptMessage(Uint8List encryptedMessage, Uint8List nonce,
+      PrivateKey myPrivateKey, PublicKey theirPublicKey) {
+    final box = Box(myPrivateKey: myPrivateKey, theirPublicKey: theirPublicKey);
+    try {
+      // Debugging information
+      print('Starting decryption...');
+      print('Encrypted message size: ${encryptedMessage.length}');
+      print('Nonce: ${nonce}');
+      print('Nonce size: ${nonce.length}');
+      print('My private key: ${base64Encode(myPrivateKey)}');
+      print('Their public key: ${base64Encode(theirPublicKey)}');
+
+      if (nonce.length != 24) { // Assuming nonce size is 24 bytes
+        throw Exception('Invalid nonce size: ${nonce.length}');
+      }
+
+      final decryptedMessage = box.decrypt(
+          EncryptedMessage(cipherText: encryptedMessage, nonce: nonce));
+      print('Decrypted message: ${base64Encode(
+          decryptedMessage)}'); // Log the decrypted message
+      return decryptedMessage;
+    } catch (e) {
+      print('Decryption error: $e');
+      throw Exception('Failed to decrypt message');
+    }
+  }
+
+  Future<void> validateIdentityKey(crypto.SimplePublicKey identityKey,
+      String uid, crypto.SimpleKeyPair clientKeyPair, String email) async {
     final timeStamp = DateTime.now();
-
-
-    Uint8List x = generateSecureRandomScalar();
-    print("x value in bytes :$x");
-    print("public key bytes:");
-    print(pubPK.bytes);
-      Uint8List xPubpk = Uint8List(32);
-
-    Uint8List xInvPubpk = Uint8List(32);
-
-    x25519(xPubpk ,x, pubPK.bytes);
-    print("x times pk pub : $xPubpk");
-
-
-    BigInt bytesToBigInt(Uint8List bytes) {
-      BigInt result = BigInt.zero;
-      for (int byte in bytes) {
-        result = (result << 8) | BigInt.from(byte);
-      }
-      return result;
-    }
-
-    Uint8List bigIntToBytes(BigInt value) {
-      // Convert BigInt to Uint8List (big-endian)
-      var hexString = value.toRadixString(16);
-      if (hexString.length % 2 != 0) hexString = '0$hexString'; // Ensure even length
-      final byteList = List<int>.generate(hexString.length ~/ 2,
-              (i) => int.parse(hexString.substring(i * 2, i * 2 + 2), radix: 16));
-      return Uint8List.fromList(byteList);
-    }
-
-    BigInt modInverse(BigInt a, BigInt m) {
-      final m0 = m;
-      BigInt y = BigInt.zero;
-      BigInt x = BigInt.one;
-
-      if (m == BigInt.one) return BigInt.zero;
-
-      while (a > BigInt.one) {
-        final q = a ~/ m;
-        var t = m;
-
-        m = a % m;
-        a = t;
-        t = y;
-
-        y = x - q * y;
-        x = t;
-      }
-
-      if (x < BigInt.zero) x += m0;
-
-      return x;
-    }
-
-    Uint8List computeModularInverse(Uint8List input, BigInt modulus) {
-      BigInt inputBigInt = bytesToBigInt(input);
-      BigInt inverseBigInt = modInverse(inputBigInt, modulus);
-      Uint8List inverseBytes = bigIntToBytes(inverseBigInt);
-      return inverseBytes;
-    }
-    BigInt modulus = BigInt.parse(
-        '7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed', // Modulus for Curve25519
-        radix: 16);
-
-    handleServerResponse(Uint8List yx) async {
-      Uint8List inverseX = computeModularInverse(x, modulus);
-      print("inverse of x $inverseX");
-      x25519(xInvPubpk, inverseX,yx);
-      final yTimesPK = {
-        'Y times PreKey Public' : base64Encode(xInvPubpk),
-      };
-      await _firestore.collection('usersPreKeyValidations').doc(uid).update(yTimesPK);
-    }
-
-
-
-
-
-    final xTimesPK = {
-      'PreKey Public' : base64Encode(pubPK.bytes),
-      'X times PreKey Public' : base64Encode(xPubpk),
-      'Time Stamp' : timeStamp,
+    final identityKeyData = {
+      'Identity Key': base64Encode(identityKey.bytes),
+      'Timestamp': timeStamp,
     };
+    print('Saving identity key data to Firestore for UID: $uid');
 
-    await _firestore.collection('usersPreKeyValidations').doc(uid).set(xTimesPK);
+    await _firestore.collection('identityKeyValidations').doc(uid).set(
+        identityKeyData);
+    print('Identity key data saved successfully');
 
-    User? user = await getCurrentUser();
+    User? user = getCurrentUser();
     if (user == null) {
       print('User is not authenticated');
       return;
     }
 
-    try {
-    // Call the cloud function
-    HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('userpub1');
-    final response = await callable.call({'uid': uid});
-
-    if (response.data['success']) {
-      Uint8List yxpubBytes = base64Decode(response.data['yxpub']);
-      await handleServerResponse(yxpubBytes);
-      print('Cloud function 1 executed successfully');
-
-    } else {
-      print('Cloud function execution failed');
-    }
-  } catch (e) {
-      print('Error calling cloud function: $e');
-    }
+    // Generate nonce
+    Uint8List nonce = generateSecureRandomNonce();
 
     try {
-      // Call the cloud function
-      HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('userpub2');
+      // Fetch the user's private key using the email
+      PrivateKey myPrivateKey = await fetchUserPrivateKey(
+          email); // Use email here
+
+      // Calling cloud function userpub1
+      print('Calling cloud function userpub1 with UID: $uid');
+      HttpsCallable callable = FirebaseFunctions.instance.httpsCallable(
+          'userpub1');
       final response = await callable.call({'uid': uid});
+      print('Response from userpub1: ${response.data}');
 
       if (response.data['success']) {
+        print('Cloud function 1 executed successfully');
 
-        print('Cloud function 2 executed successfully');
+        // Decode the received encrypted nonce
+        Uint8List encryptedNonceData = base64Decode(
+            response.data['encryptedNonce']);
+        print('Encrypted Nonce Data: ${base64Encode(encryptedNonceData)}');
 
+        // Extract the received encryption nonce
+        Uint8List receivedEncryptionNonce = base64Decode(
+            response.data['encryptionNonce']);
+        print('Received Encryption Nonce: ${base64Encode(
+            receivedEncryptionNonce)}');
+
+        if (encryptedNonceData.length <= 24) {
+          print('Error: Encrypted nonce data is too short.');
+          return;
+        }
+
+        // Get the global public key from the response
+        String globalPublicKeyBase64 = response.data['globalPublicKey'];
+        Uint8List globalPublicKeyBytes = base64Decode(globalPublicKeyBase64);
+        PublicKey globalPublicKey = PublicKey(globalPublicKeyBytes);
+
+        // Decrypt the nonce using the received encrypted message
+        Uint8List decryptedNonce = decryptMessage(
+            encryptedNonceData, receivedEncryptionNonce, myPrivateKey,
+            globalPublicKey);
+        print('Decrypted Nonce: ${base64Encode(decryptedNonce)}');
+
+        // Re-encrypt the nonce to send back
+        EncryptedMessage reEncryptedNonce = encryptNonce(
+            decryptedNonce, myPrivateKey, globalPublicKey);
+        print(
+            'Re-encrypted Nonce: ${base64Encode(reEncryptedNonce.cipherText)}');
+
+        // Call cloud function userpub2
+        print('Calling cloud function userpub2 with UID: $uid');
+        HttpsCallable callable2 = FirebaseFunctions.instance.httpsCallable(
+            'userpub2');
+        final response2 = await callable2.call({
+          'uid': uid,
+          'encryptedNonce': base64Encode(reEncryptedNonce.cipherText),
+        });
+
+        print('Response from userpub2: ${response2.data}');
+        if (response2.data['success']) {
+          print('Cloud function 2 executed successfully');
+          print('Verification status: ${response2.data['verified']}');
+        } else {
+          print(
+              'Cloud function 2 execution failed: ${response2.data['error']}');
+        }
       } else {
-        print('Cloud function execution failed');
+        print('Cloud function 1 execution failed');
       }
     } catch (e) {
       print('Error calling cloud function: $e');
     }
   }
-
-
-
 }

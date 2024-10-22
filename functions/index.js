@@ -42,55 +42,40 @@ function base64ToUint8Array(base64) {
 }
 
 /**
- * Encrypts a nonce using the provided public key and the server's private key.
- * @param {Uint8Array} nonce - The nonce to be encrypted.
+ * Decrypts the message using the server's private key.
+ * @param {Uint8Array} encryptedMessage - The encrypted message.
+ * @param {Uint8Array} nonce - The nonce used during encryption.
  * @param {Uint8Array} userPublicKey - The user's public key.
- * @return {Uint8Array} - The encrypted nonce.
+ * @return {Uint8Array} - The decrypted message.
  */
-function encryptNonce(nonce, userPublicKey) {
-  // Ensure nonce and userPublicKey are Uint8Array
-  if (!(nonce instanceof Uint8Array)) {
-    throw new Error("nonce must be a Uint8Array");
-  }
-  if (!(userPublicKey instanceof Uint8Array)) {
-    throw new Error("userPublicKey must be a Uint8Array");
-  }
-  return nacl.box(
+function decryptMessage(encryptedMessage, nonce, userPublicKey) {
+  return nacl.box.open(
+      encryptedMessage,
       nonce,
-      nacl.randomBytes(nacl.box.nonceLength), // Use a nonce
       userPublicKey,
       globalKeys.privateKey,
   );
 }
 
-
 /**
- * Decrypts the encrypted nonce using the provided.
- * @param {Uint8Array} encryptedNonce - The encrypted nonce.
- * @param {Uint8Array} receivedNonce - The nonce used during encryption.
- * @param {Uint8Array} userPrivateKey - The user's private key.
- * @return {Uint8Array} - The decrypted nonce.
+ * Encrypts a message (nonce + uid + server id) using the user's
+ * @param {Uint8Array} message - The message to be encrypted.
+ * @param {Uint8Array} userPublicKey - The user's public key.
+ * @return {{encryptedMessage: Uint8Array, encryptionNonce: Uint8Array}}
  */
-function decryptNonce(encryptedNonce, receivedNonce, userPrivateKey) {
-  // Ensure encryptedNonce, receivedNonce, and userPrivateKey are Uint8Array
-  if (!(encryptedNonce instanceof Uint8Array)) {
-    throw new Error("encryptedNonce must be a Uint8Array");
-  }
-  if (!(receivedNonce instanceof Uint8Array)) {
-    throw new Error("receivedNonce must be a Uint8Array");
-  }
-  if (!(userPrivateKey instanceof Uint8Array)) {
-    throw new Error("userPrivateKey must be a Uint8Array");
-  }
-  return nacl.box.open(
-      encryptedNonce,
-      nacl.randomBytes(nacl.box.nonceLength), // Use a fresh nonce
-      receivedNonce,
-      userPrivateKey,
+function encryptMessage(message, userPublicKey) {
+  const encryptionNonce = nacl.randomBytes(nacl.box.nonceLength);
+  const encryptedMessage = nacl.box(
+      message,
+      encryptionNonce,
+      userPublicKey,
+      globalKeys.privateKey,
   );
+
+  return {encryptedMessage, encryptionNonce};
 }
 
-
+// Cloud function to handle the first call (sending the encrypted nonce)
 exports.userpub1 = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated",
@@ -98,26 +83,71 @@ exports.userpub1 = functions.https.onCall(async (data, context) => {
   }
 
   const uid = data.uid;
-  const docRef = admin.firestore().collection("usersPreKeyValidations").
-      doc(uid);
-  const doc = await docRef.get();
+  const identityKeyRef = admin.firestore()
+      .collection("identityKeyValidations").doc(uid);
+  const identityDoc = await identityKeyRef.get();
 
-  if (!doc.exists) {
-    throw new functions.https.HttpsError("not-found", "Document not found");
+  if (!identityDoc.exists) {
+    throw new functions.https.HttpsError("not-found",
+        "Identity Key Document not found");
   }
 
-  const nonce = nacl.randomBytes(24);
-  const userPublicKey = new Uint8Array(doc.data()["PreKey Public"]);
+  // Fetch user's public identity key
+  const userPublicKeyBase64 = identityDoc.data()["Identity Key"];
+  const userPublicKey = base64ToUint8Array(userPublicKeyBase64);
 
-  const encryptedNonce = encryptNonce(nonce, userPublicKey);
+  console.log("UID:", uid);
+  console.log("User Public Key:", userPublicKeyBase64);
 
-  await docRef.update({
-    "Encrypted Nonce": uint8ArrayToBase64(encryptedNonce),
+  // Log the public and private keys of the server
+  console.log("Server Global Public Key:",
+      uint8ArrayToBase64(globalKeys.publicKey));
+  console.log("Server Global Private Key:",
+      uint8ArrayToBase64(globalKeys.privateKey));
+
+  // Log the public key size
+  console.log("User Public Key Size:", userPublicKey.length);
+
+  // Generate a nonce for concatenation
+  const nonceForMessage = nacl.randomBytes(24);
+  // Fetch server id from Firestore
+  const serverDoc = await admin.firestore().collection("server_keys")
+      .doc("bMOs2lASMyLAAGOBo35W").get();
+  const serverId = serverDoc.data()["sid"];
+
+  // Concatenate the message with nonce, uid, and server id
+  const message =
+  new Uint8Array([...nonceForMessage, ...nacl.util.decodeUTF8(uid),
+    ...nacl.util.decodeUTF8(serverId)]);
+
+  // Log plain message size and content
+  console.log("Plain Message Size:", message.length);
+  console.log("Plain Message (nonce + uid + serverId):", message);
+
+  // Encrypt the concatenated string using the user's public key
+  const {encryptedMessage, encryptionNonce} =
+    encryptMessage(message, userPublicKey);
+
+  // Log encrypted message size and content
+  console.log("Encrypted Message Size:", encryptedMessage.length);
+  console.log("Encrypted Message:", encryptedMessage);
+
+  // Save the hashed nonce and original nonce to Firestore
+  await identityKeyRef.update({
+    "HashedNonce": uint8ArrayToBase64(nacl.hash(nonceForMessage)),
+    "Nonce": uint8ArrayToBase64(nonceForMessage),
   });
 
-  return {success: true, nonce: nonce};
+  // Return encrypted message and the nonce used for encryption
+  return {
+    success: true,
+    encryptedNonce: uint8ArrayToBase64(encryptedMessage),
+    encryptionNonce: uint8ArrayToBase64(encryptionNonce),
+    globalPublicKey: uint8ArrayToBase64(globalKeys.publicKey),
+  };
 });
 
+// Cloud function to handle the second call (validating by the user)
 exports.userpub2 = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated",
@@ -125,33 +155,71 @@ exports.userpub2 = functions.https.onCall(async (data, context) => {
   }
 
   const uid = data.uid;
-  const docRef = admin.firestore().collection("usersPreKeyValidations").
-      doc(uid);
-  const doc = await docRef.get();
+  const identityKeyRef = admin.firestore()
+      .collection("identityKeyValidations").doc(uid);
+  const identityDoc = await identityKeyRef.get();
 
-  if (!doc.exists) {
-    throw new functions.https.HttpsError("not-found", "Document not found");
+  if (!identityDoc.exists) {
+    throw new functions.https.HttpsError("not-found",
+        "Identity Key Document not found");
   }
 
-  const receivedNonceMinusOne = data.nonceMinusOne;
-  const encryptedNonce = base64ToUint8Array(doc.data()["Encrypted Nonce"]);
+  // Get the encrypted nonce and user's public identity key from Firestore
+  const receivedEncryptedMessage = base64ToUint8Array(data.encryptedNonce);
+  const userPublicKeyBase64 = identityDoc.data()["Identity Key"];
+  const userPublicKey = base64ToUint8Array(userPublicKeyBase64);
 
-  const decryptedNonce = decryptNonce(encryptedNonce,
-      nacl.randomBytes(nacl.box.nonceLength), globalKeys.publicKey);
+  // Log public key size
+  console.log("User Public Key Size:", userPublicKey.length);
 
-  let isValid = false;
-  if (decryptedNonce) {
-    const expectedNonceMinusOne = decryptedNonce.map((byte) =>
-      (byte - 1) & 0xFF);
-    isValid = expectedNonceMinusOne.every((value, index) =>
-      value === data.nonceMinusOne[index]);
+  // Retrieve the original nonce used for encryption from Firestore
+  const storedNonce = base64ToUint8Array(identityDoc.data()["Nonce"]);
+
+  // Log nonce size
+  console.log("Stored Nonce Size:", storedNonce.length);
+
+  // Decrypt the received encrypted message
+  const serverDoc = await admin.firestore().collection("server_keys")
+      .doc("bMOs2lASMyLAAGOBo35W").get();
+  const serverId = serverDoc.data()["sid"];
+  const decryptedMessage = decryptMessage(receivedEncryptedMessage,
+      storedNonce, userPublicKey);
+
+  // Log decrypted message size and content
+  console.log("Decrypted Message Size:", decryptedMessage.length);
+  console.log("Decrypted Message:", decryptedMessage);
+
+  // Extract UID, SID, and Nonce from the decrypted message
+  const receivedUid = nacl.util.encodeUTF8(decryptedMessage.slice(24, 48));
+  const receivedSid = nacl.util.encodeUTF8(decryptedMessage.slice(48));
+
+  if (uid !== receivedUid || serverId !== receivedSid) {
+    return {success: false, verified: false, error: "Invalid UID or Server ID"};
   }
 
-  await docRef.update({
-    "PreKey Verification Status": isValid ? "verified" : "not verified",
+  // Hash the received nonce
+  const receivedNonce = decryptedMessage.slice(0, 24);
+  const receivedNonceHash = nacl.hash(receivedNonce);
+
+  // Log received nonce and hash sizes
+  console.log("Received Nonce Size:", receivedNonce.length);
+  console.log("Received Nonce Hash Size:", receivedNonceHash.length);
+
+  // Compare with the stored hashed nonce
+  const storedNonceHash = base64ToUint8Array(identityDoc.data()["HashedNonce"]);
+
+  const isVerified = storedNonceHash.every((value, index) => value ===
+    receivedNonceHash[index]);
+
+  // Log verification result
+  console.log("Verification Status:", isVerified);
+
+  // Update verification status in Firestore
+  await identityKeyRef.update({
+    "Verification": isVerified ? true : false,
   });
 
-  return {success: true, verified: isValid};
+  return {success: true, verified: isVerified};
 });
 
 

@@ -1,1 +1,59 @@
-{"functions":[{"source":"safechat","codebase":"safechat","ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"],"predeploy":["npm --prefix \"$RESOURCE_DIR\" run lint"]}],"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"flutter":{"platforms":{"android":{"default":{"projectId":"safechat-4c782","appId":"1:786402599068:android:240862a9e19a152f684d59","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"safechat-4c782","configurations":{"android":"1:786402599068:android:240862a9e19a152f684d59","ios":"1:786402599068:ios:218948b30c6598ea684d59","macos":"1:786402599068:ios:218948b30c6598ea684d59","web":"1:786402599068:web:dfe3925955f18668684d59","windows":"1:786402599068:web:fa8735100a661b4f684d59"}}}}}}
+{
+  "functions": [
+    {
+      "source": "safechat",
+      "codebase": "safechat",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    },
+    {
+      "source": "functions",
+      "codebase": "functions",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "safechat-4c782",
+          "appId": "1:786402599068:android:240862a9e19a152f684d59",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "safechat-4c782",
+          "configurations": {
+            "android": "1:786402599068:android:240862a9e19a152f684d59",
+            "ios": "1:786402599068:ios:218948b30c6598ea684d59",
+            "macos": "1:786402599068:ios:218948b30c6598ea684d59",
+            "web": "1:786402599068:web:dfe3925955f18668684d59",
+            "windows": "1:786402599068:web:fa8735100a661b4f684d59"
+          }
+        }
+      }
+    }
+  }
+}

@@ -84,6 +84,8 @@ class IdentityKeyValidation {
       print('Encrypted message size: ${encryptedMessage.length}');
       print('Nonce: ${nonce}');
       print('Nonce size: ${nonce.length}');
+      print('My private key: ${myPrivateKey}');
+      print('Their public key: ${theirPublicKey}');
       print('My private key: ${base64Encode(myPrivateKey)}');
       print('Their public key: ${base64Encode(theirPublicKey)}');
 

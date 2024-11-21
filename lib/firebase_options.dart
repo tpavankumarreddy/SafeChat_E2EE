@@ -27,10 +27,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -44,37 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyA73YAzjcrvp1Ow7waC6ek50J_Jg8QrhPU',
-    appId: '1:958437378846:web:aa7b7f2dac13dff48c570f',
-    messagingSenderId: '958437378846',
-    projectId: 'safechat-76c57',
-    authDomain: 'safechat-76c57.firebaseapp.com',
-    storageBucket: 'safechat-76c57.appspot.com',
+    apiKey: 'AIzaSyAMVkJVEu6I0mLYsq-S2Iv8DSLEtMyVwQw',
+    appId: '1:786402599068:web:dfe3925955f18668684d59',
+    messagingSenderId: '786402599068',
+    projectId: 'safechat-4c782',
+    authDomain: 'safechat-4c782.firebaseapp.com',
+    storageBucket: 'safechat-4c782.firebasestorage.app',
+    measurementId: 'G-Q88EG14Y75',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDIQoHSQ7BJbKxU8aGSZQV7AYmZqshvl4w',
-    appId: '1:958437378846:android:bda1e93029e209a88c570f',
-    messagingSenderId: '958437378846',
-    projectId: 'safechat-76c57',
-    storageBucket: 'safechat-76c57.appspot.com',
+    apiKey: 'AIzaSyAxVaVwbC0IHQvsqCw39e4EieUDkSwbO80',
+    appId: '1:786402599068:android:240862a9e19a152f684d59',
+    messagingSenderId: '786402599068',
+    projectId: 'safechat-4c782',
+    storageBucket: 'safechat-4c782.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB9ynQCEclXmomslwPprDFfe7n6y0JlTRA',
-    appId: '1:958437378846:ios:659b5f268e9be4448c570f',
-    messagingSenderId: '958437378846',
-    projectId: 'safechat-76c57',
-    storageBucket: 'safechat-76c57.appspot.com',
+    apiKey: 'AIzaSyClptSrG9xYGZCtckP15yAm8uzzZRFg3jY',
+    appId: '1:786402599068:ios:218948b30c6598ea684d59',
+    messagingSenderId: '786402599068',
+    projectId: 'safechat-4c782',
+    storageBucket: 'safechat-4c782.firebasestorage.app',
     iosBundleId: 'com.example.emailchat',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyB9ynQCEclXmomslwPprDFfe7n6y0JlTRA',
-    appId: '1:958437378846:ios:a0ee775560eace238c570f',
-    messagingSenderId: '958437378846',
-    projectId: 'safechat-76c57',
-    storageBucket: 'safechat-76c57.appspot.com',
-    iosBundleId: 'com.example.emailchat.RunnerTests',
+    apiKey: 'AIzaSyClptSrG9xYGZCtckP15yAm8uzzZRFg3jY',
+    appId: '1:786402599068:ios:218948b30c6598ea684d59',
+    messagingSenderId: '786402599068',
+    projectId: 'safechat-4c782',
+    storageBucket: 'safechat-4c782.firebasestorage.app',
+    iosBundleId: 'com.example.emailchat',
   );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyAMVkJVEu6I0mLYsq-S2Iv8DSLEtMyVwQw',
+    appId: '1:786402599068:web:fa8735100a661b4f684d59',
+    messagingSenderId: '786402599068',
+    projectId: 'safechat-4c782',
+    authDomain: 'safechat-4c782.firebaseapp.com',
+    storageBucket: 'safechat-4c782.firebasestorage.app',
+    measurementId: 'G-Q2X5N0Q87Q',
+  );
+
 }

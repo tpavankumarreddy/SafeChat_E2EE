@@ -1,5 +1,9 @@
 {
   "projects": {
-    "default": "safechat-76c57"
-  }
+    "default": "safechat-4c782",
+    "safechat": "safechat-4c782"
+  },
+  "targets": {},
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
 }

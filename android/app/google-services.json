@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "958437378846",
-    "project_id": "safechat-76c57",
-    "storage_bucket": "safechat-76c57.appspot.com"
+    "project_number": "786402599068",
+    "project_id": "safechat-4c782",
+    "storage_bucket": "safechat-4c782.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:958437378846:android:bda1e93029e209a88c570f",
+        "mobilesdk_app_id": "1:786402599068:android:240862a9e19a152f684d59",
         "android_client_info": {
           "package_name": "com.example.emailchat"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDIQoHSQ7BJbKxU8aGSZQV7AYmZqshvl4w"
+          "current_key": "AIzaSyAxVaVwbC0IHQvsqCw39e4EieUDkSwbO80"
         }
       ],
       "services": {

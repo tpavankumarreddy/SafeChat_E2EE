@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:email_otp/email_otp.dart';
+import '../main.dart';
 import '../services/auth/auth_service.dart';
 import '../services/auth/otp_service.dart';
 import 'login_page.dart';
@@ -121,7 +122,7 @@ class _OTPPageState extends State<OTPPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => LoginPage(onTap: () {}),
+                    builder: (context) => MyApp(),
                   ),
                 );
               },

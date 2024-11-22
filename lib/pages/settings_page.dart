@@ -120,7 +120,7 @@ class SettingsPageState extends State<SettingsPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => MyApp(),
+                                builder: (context) => const MyApp(),
                               ),
                             );
                           },

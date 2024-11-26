@@ -39,7 +39,7 @@ class _HomePageState extends State<HomePage> {
     userEmail = getUserEmail();
     _scaffoldKey = GlobalKey<ScaffoldState>();
     _loadAddressBookEmails(); // Load address book emails with nicknames from SQLite database
-    if(widget.isLoggedIn= true){
+    if(widget.isLoggedIn){
       _checkPrivateKeysAndPrompt(context);
     }
   }
@@ -83,10 +83,11 @@ class _HomePageState extends State<HomePage> {
       if (!hasKeys) {
         showDialog(
           context: context,
+          barrierDismissible: false,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text('No Private Keys Found'),
-              content: const Text('You do not have private keys. Do you want to log out or delete your account and Register again?'),
+              title: const Text('Invalid login Detected!'),
+              content: const Text('You have to login in the device which you first registered.'),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -94,13 +95,6 @@ class _HomePageState extends State<HomePage> {
                     FirebaseAuth.instance.signOut();
                   },
                   child: const Text('Log Out'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await settings.deleteAccount(context);
-                  },
-                  child: const Text('Delete Account'),
                 ),
               ],
             );

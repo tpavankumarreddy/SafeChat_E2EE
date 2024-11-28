@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../crypto/key_gen.dart';
+import '../main.dart';
 import 'login_page.dart';
 
 class OAuthPage extends StatefulWidget {
@@ -188,7 +189,13 @@ class _OAuthPageState extends State<OAuthPage> {
                 const Text("Already have an account?"),
                 const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: widget.onTap,
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MyApp()),
+                    );
+                  },
+
                   child: const Text(
                     "Login here!",
                     style: TextStyle(fontWeight: FontWeight.bold),

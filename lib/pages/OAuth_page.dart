@@ -75,7 +75,36 @@ class _OAuthPageState extends State<OAuthPage> {
     }
   }
 
+  // Sign in with GitHub method
+  Future<void> signInWithGitHub(BuildContext context) async {
+    try {
+      final AuthCredential credential = GithubAuthProvider.credential('your-github-token');
 
+      // Sign in with Firebase
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GitHub OAuth registration successful!')),
+      );
+    } catch (e) {
+      // Show error dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(e.toString(), style: const TextStyle(fontSize: 18)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Ok'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   // Navigate to login page (existing one)
   void _navigateToLoginPage() {
@@ -151,7 +180,22 @@ class _OAuthPageState extends State<OAuthPage> {
               ),
               child: const Text("Register with Google"),
             )
-,
+            ,
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Already have an account?"),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: widget.onTap,
+                  child: const Text(
+                    "Login here!",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
 
             const SizedBox(height: 20),
 

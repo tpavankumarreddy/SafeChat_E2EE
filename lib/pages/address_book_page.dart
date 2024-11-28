@@ -8,6 +8,7 @@ import 'package:pointycastle/api.dart' as pc;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import '../components/user_tile.dart';
+import '../crypto/KeyUtility.dart';
 import '../crypto/X3DHHelper.dart';
 import '../data/database_helper.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -192,7 +193,32 @@ class _AddressBookPageState extends State<AddressBookPage> {
                           value: base64Encode(sharedSecretBytes));
 
                       print('Secret key generated and stored for $email.');
+                      try {
+                        Map<String, Uint8List> keys = await KeyUtility.deriveKeys(email);
+                        print('Derived Keys: ${keys.map((key, value) => MapEntry(key, base64Encode(value)))}');
+                      } catch (e) {
+                        print('Error: $e');
+                      }
+
+                      try {
+                        // Derive keys using KeyUtility
+                        Map<String, Uint8List> derivedKeys = await KeyUtility.deriveKeys(email);
+
+                        // Store each derived key in secure storage with the respective algorithm name
+                        for (var entry in derivedKeys.entries) {
+                          final algorithmName = entry.key;
+                          final derivedKey = entry.value;
+                          await storage.write(
+                            key: 'shared_Secret_With_${email}_$algorithmName',
+                            value: base64Encode(derivedKey),
+                          );
+                          print('Derived key for $algorithmName stored for $email.');
+                        }
+                      } catch (e) {
+                        print('Error during key derivation or storage: $e');
+                      }
                     }
+
 
                     else if (retrieveKeysResponse.data['status'] =="yes") {
                       print("hi");
@@ -222,6 +248,33 @@ class _AddressBookPageState extends State<AddressBookPage> {
                       print("Shared secret: $sharedSecretBytes");
                       final storedSecretKeyString = await storage.read(key: 'shared_Secret_With_${email}');
                       print(storedSecretKeyString);
+
+                      try {
+                        Map<String, Uint8List> keys = await KeyUtility.deriveKeys(email);
+                        print('Derived Keys: ${keys.map((key, value) => MapEntry(key, base64Encode(value)))}');
+                      } catch (e) {
+                        print('Error: $e');
+                      }
+
+                      try {
+                        // Derive keys using KeyUtility
+                        Map<String, Uint8List> derivedKeys = await KeyUtility.deriveKeys(email);
+
+                        // Store each derived key in secure storage with the respective algorithm name
+                        for (var entry in derivedKeys.entries) {
+                          final algorithmName = entry.key;
+                          final derivedKey = entry.value;
+                          await storage.write(
+                            key: 'shared_Secret_With_${email}_$algorithmName',
+                            value: base64Encode(derivedKey),
+                          );
+                          print('Derived key for $algorithmName stored for $email.');
+                        }
+                      } catch (e) {
+                        print('Error during key derivation or storage: $e');
+                      }
+
+
                     }
                     else {
                       print("oh no...");

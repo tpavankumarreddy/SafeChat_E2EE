@@ -22,7 +22,7 @@ constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 ///
 /// A value of 0 indicates apps should use dark mode. A non-zero or missing
 /// value indicates apps should use light mode.
-constexpr const wchar_t kGetPreferredBrightnessRegKey[] =
+constexpr const wchar_t kGetPreferredBrightnessRegKey[] ff=
   L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme";
 

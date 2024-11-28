@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -15,6 +16,8 @@ class OAuthPage extends StatefulWidget {
 }
 
 class _OAuthPageState extends State<OAuthPage> {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
   final TextEditingController _pinController = TextEditingController();
   bool _isButtonEnabled = false;
 
@@ -44,18 +47,64 @@ class _OAuthPageState extends State<OAuthPage> {
       );
 
       // Sign in with Firebase
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      // Generate and store keys
-      await KeyGenerator().generateAndStoreKeys(
-          googleAuth.accessToken.toString(), // Access Token
-          googleAuth.idToken.toString(),                     // ID Token
-          _pinController.text                          // User-entered PIN
-      );
+      print("object");
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Show success message
+      // Access the signed-in user's information
+      User? user = userCredential.user;
+      if (true){
+        showDialog(
+            context: context,
+            barrierDismissible: false, // Prevents dialog from being dismissed
+            builder: (BuildContext context) {
+              return const Dialog(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 20),
+                      Text('Please wait, your keys are being generated...'),
+                    ],
+                  ),
+                ),
+              );
+            },
+        );
+      }
+      await firestore.collection("user's").doc(userCredential.user!.uid).set({
+        'uid': user!.uid,
+        'email': user.email.toString(),
+      });
+
+      print("object1");
+
+
+
+      if (user != null) {
+        await KeyGenerator().generateAndStoreKeys(user.uid, user.email.toString(), _pinController.text);
+      } else {
+        print('No user was returned.');
+      }
+
+      // Generate and store keys
+
+      print("object2");
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Google OAuth registration successful!')),
       );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              "Registration Successful! 🥳 Your account has been created."),
+        ),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+
+
+
     } catch (e) {
       // Show error dialog
       showDialog(

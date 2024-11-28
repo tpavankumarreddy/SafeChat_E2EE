@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "786402599068-1lnbkdtlm0veeoval6jrrkv3l1v9j27i.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.emailchat",
-            "certificate_hash": "822d826228b28ad588b8e83df95a444b6d83d1ca"
-          }
-        },
-        {
           "client_id": "786402599068-5huoa3t3arrjhsm8bnr4jtubqi3jfrip.apps.googleusercontent.com",
           "client_type": 3
         }

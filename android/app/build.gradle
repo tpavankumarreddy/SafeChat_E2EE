@@ -38,7 +38,10 @@ android {
 
     dependencies {
         // Add the core library desugaring dependency
-        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3' // Make sure to use the latest version
+        coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.3'
+        implementation 'com.google.firebase:firebase-auth:latest_version'
+        implementation 'com.google.android.gms:play-services-auth:latest_version'
+// Make sure to use the latest version
     }
 
 

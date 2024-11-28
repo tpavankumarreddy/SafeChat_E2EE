@@ -3,6 +3,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nacl = require("tweetnacl");
 nacl.util = require("tweetnacl-util");
+const crypto = require("crypto");
 
 // Initialize Firebase Admin
 admin.initializeApp();
@@ -137,10 +138,16 @@ exports.userpub1 = functions.https.onCall(async (data, context) => {
   console.log("Encrypted Message:", encryptedMessage);
   console.log("Encryption nonce:", encryptionNonce);
 
+  // SHA-256 Hash of the first 24 bytes (nonceForMessage)
+  const sha256Hash = crypto.createHash("sha256");
+  sha256Hash.update(nonceForMessage.slice(0, 24));
+  const hashedNonce = sha256Hash.digest();
+
   // Save the hashed nonce and original nonce to Firestore
   await identityKeyRef.update({
-    "HashedNonce": uint8ArrayToBase64(nacl.hash(nonceForMessage)),
+    "HashedNonce": uint8ArrayToBase64(hashedNonce),
     "Nonce": uint8ArrayToBase64(nonceForMessage),
+    "ConfMessage": message,
   });
 
   // Return encrypted message and the nonce used for encryption
@@ -149,6 +156,8 @@ exports.userpub1 = functions.https.onCall(async (data, context) => {
     encryptedNonce: uint8ArrayToBase64(encryptedMessage),
     encryptionNonce: uint8ArrayToBase64(encryptionNonce),
     globalPublicKey: uint8ArrayToBase64(globalKeys.publicKey),
+    globalPrivateKey: uint8ArrayToBase64(globalKeys.secretKey),
+    message: uint8ArrayToBase64(message),
   };
 });
 
@@ -169,59 +178,29 @@ exports.userpub2 = functions.https.onCall(async (data, context) => {
         "Identity Key Document not found");
   }
 
-  // Get the encrypted nonce and user's public identity key from Firestore
-  const receivedEncryptedMessage = base64ToUint8Array(data.encryptedNonce);
-  const userPublicKeyBase64 = identityDoc.data()["Identity Key"];
-  const userPublicKey = base64ToUint8Array(userPublicKeyBase64);
+  // Get the received hashed nonce (as base64 string)
+  const receivedHashedNonceBase64 = data.hashedNonce;
+  const receivedHashedNonce = base64ToUint8Array(receivedHashedNonceBase64);
 
-  // Log public key size
-  console.log("User Public Key Size:", userPublicKey.length);
+  // Get the stored hashed nonce from Firestore
+  const storedHashedNonceBase64 = identityDoc.data()["HashedNonce"];
+  const storedHashedNonce = base64ToUint8Array(storedHashedNonceBase64);
 
-  // Retrieve the original nonce used for encryption from Firestore
-  const storedNonce = base64ToUint8Array(identityDoc.data()["Nonce"]);
+  // Log sizes for debugging
+  console.log("Received Hashed Nonce Size:", receivedHashedNonce.length);
+  console.log("Stored Hashed Nonce Size:", storedHashedNonce.length);
 
-  // Log nonce size
-  console.log("Stored Nonce Size:", storedNonce.length);
-
-  // Decrypt the received encrypted message
-  const serverDoc = await admin.firestore().collection("server_keys")
-      .doc("bMOs2lASMyLAAGOBo35W").get();
-  const serverId = serverDoc.data()["sid"];
-  const decryptedMessage = decryptMessage(receivedEncryptedMessage,
-      storedNonce, userPublicKey);
-
-  // Log decrypted message size and content
-  console.log("Decrypted Message Size:", decryptedMessage.length);
-  console.log("Decrypted Message:", decryptedMessage);
-
-  // Extract UID, SID, and Nonce from the decrypted message
-  const receivedUid = nacl.util.encodeUTF8(decryptedMessage.slice(24, 48));
-  const receivedSid = nacl.util.encodeUTF8(decryptedMessage.slice(48));
-
-  if (uid !== receivedUid || serverId !== receivedSid) {
-    return {success: false, verified: false, error: "Invalid UID or Server ID"};
-  }
-
-  // Hash the received nonce
-  const receivedNonce = decryptedMessage.slice(0, 24);
-  const receivedNonceHash = nacl.hash(receivedNonce);
-
-  // Log received nonce and hash sizes
-  console.log("Received Nonce Size:", receivedNonce.length);
-  console.log("Received Nonce Hash Size:", receivedNonceHash.length);
-
-  // Compare with the stored hashed nonce
-  const storedNonceHash = base64ToUint8Array(identityDoc.data()["HashedNonce"]);
-
-  const isVerified = storedNonceHash.every((value, index) => value ===
-    receivedNonceHash[index]);
+  // Compare the received hashed nonce with the stored hashed nonce
+  const isVerified = receivedHashedNonce.length === storedHashedNonce.length &&
+    receivedHashedNonce.every((value, index) =>
+      value === storedHashedNonce[index]);
 
   // Log verification result
   console.log("Verification Status:", isVerified);
 
   // Update verification status in Firestore
   await identityKeyRef.update({
-    "Verification": isVerified ? true : false,
+    "Verification": isVerified,
   });
 
   return {success: true, verified: isVerified};

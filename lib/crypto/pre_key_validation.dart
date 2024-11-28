@@ -191,7 +191,7 @@ class IdentityKeyValidation {
         HttpsCallable callable2 = FirebaseFunctions.instance.httpsCallable(
             'userpub2');
 
-        // Send the hashed nonce in the cloud function request
+        // Send the hashed nonce in the cloud function reques
         final response2 = await callable2.call({
           'uid': uid,
           'hashedNonce': base64Encode(hashedNonce), // Send the hashed nonce

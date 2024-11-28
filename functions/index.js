@@ -186,7 +186,7 @@ exports.userpub2 = functions.https.onCall(async (data, context) => {
   const storedHashedNonceBase64 = identityDoc.data()["HashedNonce"];
   const storedHashedNonce = base64ToUint8Array(storedHashedNonceBase64);
 
-  // Log sizes for debugging
+  // Log sizes for debuggin
   console.log("Received Hashed Nonce Size:", receivedHashedNonce.length);
   console.log("Stored Hashed Nonce Size:", storedHashedNonce.length);
 

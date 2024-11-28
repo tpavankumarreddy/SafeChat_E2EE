@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../crypto/key_gen.dart';
 import 'login_page.dart';
 
 class OAuthPage extends StatefulWidget {
@@ -44,6 +45,12 @@ class _OAuthPageState extends State<OAuthPage> {
 
       // Sign in with Firebase
       await FirebaseAuth.instance.signInWithCredential(credential);
+      // Generate and store keys
+      await KeyGenerator().generateAndStoreKeys(
+          googleAuth.accessToken.toString(), // Access Token
+          googleAuth.idToken.toString(),                     // ID Token
+          _pinController.text                          // User-entered PIN
+      );
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,36 +75,7 @@ class _OAuthPageState extends State<OAuthPage> {
     }
   }
 
-  // Sign in with GitHub method
-  Future<void> signInWithGitHub(BuildContext context) async {
-    try {
-      final AuthCredential credential = GithubAuthProvider.credential('your-github-token');
 
-      // Sign in with Firebase
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('GitHub OAuth registration successful!')),
-      );
-    } catch (e) {
-      // Show error dialog
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(e.toString(), style: const TextStyle(fontSize: 18)),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Ok'),
-            ),
-          ],
-        ),
-      );
-    }
-  }
 
   // Navigate to login page (existing one)
   void _navigateToLoginPage() {
@@ -177,27 +155,7 @@ class _OAuthPageState extends State<OAuthPage> {
 
             const SizedBox(height: 20),
 
-            // GitHub Sign-In button
-            ElevatedButton(
-              onPressed: _isButtonEnabled ? () => signInWithGitHub(context) : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                backgroundColor: _isButtonEnabled
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey,
-                textStyle: const TextStyle(fontSize: 18),
-              ).copyWith(
-                foregroundColor: MaterialStateProperty.resolveWith<Color>(
-                      (Set<MaterialState> states) {
-                    return _isButtonEnabled ? Colors.white : Colors.black;
-                  },
-                ),
-              ),
-              child: const Text("Register with GitHub"),
-            )
-            ,
 
-            const SizedBox(height: 20),
 
           ],
         ),

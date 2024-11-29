@@ -14,11 +14,11 @@ class ChatPage extends StatefulWidget {
   final SecretKey secretKey;
 
   ChatPage({
-    super.key,
+    Key? key,
     required this.receiverEmail,
     required this.receiverID,
     required this.secretKey,
-  });
+  }) : super(key: key);
 
   @override
   _ChatPageState createState() => _ChatPageState();
@@ -30,55 +30,56 @@ class _ChatPageState extends State<ChatPage> {
   final AuthService _authService = AuthService();
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
-  late final Stream<QuerySnapshot> _messageStream;
-  late final Stream<List<Map<String, dynamic>>> _notificationStream;
+  late Stream<QuerySnapshot> _messageStream;
+  late Stream<String?> _algorithmStream;
+  late Stream<List<Map<String, dynamic>>> _notificationStream;
   List<Map<String, dynamic>> _decryptedMessages = [];
-  String _selectedAlgorithm = 'AES-256'; // Default encryption algorithm
+  String _selectedAlgorithm = 'AES-256';
 
   @override
   void initState() {
     super.initState();
     String senderID = _authService.getCurrentUser()!.uid;
+
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
+    _algorithmStream = _chatService.getAlgorithm(senderID, widget.receiverID);
     _notificationStream = _getAlgorithmChangeNotificationsStream(senderID);
+
+    _algorithmStream.listen((newAlgorithm) {
+      if (newAlgorithm != null && newAlgorithm != _selectedAlgorithm) {
+        setState(() {
+          _selectedAlgorithm = newAlgorithm;
+        });
+      }
+    });
   }
 
   Stream<List<Map<String, dynamic>>> _getAlgorithmChangeNotificationsStream(
       String currentUserID) {
-    List<String> ids = [_authService.getCurrentUser()!.uid, widget.receiverID];
+    List<String> ids = [currentUserID, widget.receiverID];
     ids.sort();
     String chatRoomID = ids.join('_');
-
-    return _chatService
-        .getAlgorithmChangeNotifications(chatRoomID, currentUserID);
+    return _chatService.getAlgorithmChangeNotifications(chatRoomID, currentUserID);
   }
 
   Future<void> sendMessage() async {
     if (_messageController.text.isNotEmpty) {
       try {
-        // Encrypt message with selected algorithm
         final encryptedData = await _encryptionHelper.encryptMessage(
           _messageController.text,
           widget.secretKey,
           algorithm: _selectedAlgorithm,
         );
 
-        // Create a message structure
-        Map<String, String> messageData = {
-          'cipherText': encryptedData['cipherText'],
-          'nonce': encryptedData['nonce'],
-        };
-
-        // Send message along with the algorithm used
         await _chatService.sendMessage(
           widget.receiverID,
-          jsonEncode(messageData), // Store as JSON string
+          jsonEncode(encryptedData),
           _selectedAlgorithm,
         );
 
         _messageController.clear();
       } catch (e) {
-        print("Error encrypting message: $e");
+        _showError("Error encrypting message: $e");
       }
     }
   }
@@ -87,44 +88,21 @@ class _ChatPageState extends State<ChatPage> {
     List<Map<String, dynamic>> decryptedMessages = [];
 
     for (var doc in docs) {
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
-      if (data.isEmpty) continue;
-
-      final String algorithm = data['algorithm'] ?? _selectedAlgorithm; // Default to 'AES' if no algorithm
-      final String messageJson = data['message'] ?? '';
-
-      if (messageJson.isEmpty) {
-        print("Received empty message JSON");
-        continue;
-      }
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      final String algorithm = data['algorithm'] ?? _selectedAlgorithm;
 
       if (algorithm != _selectedAlgorithm) {
-        _showError(
-          'Algorithm mismatch! Both users need to use the same encryption algorithm to chat.',
-        );
+        _showError("Algorithm mismatch detected. Update your algorithm.");
         continue;
       }
 
-      Map<String, dynamic> messageData;
-      try {
-        messageData = jsonDecode(messageJson);
-      } catch (e) {
-        print("Error parsing message JSON: $e");
-        continue;
-      }
-
-      final String cipherTextBase64 = messageData['cipherText'] ?? '';
-      final String nonceBase64 = messageData['nonce'] ?? '';
-
-      if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
-        print("Received empty cipherText or nonce");
-        continue;
-      }
+      final String messageJson = data['message'];
+      Map<String, dynamic> messageData = jsonDecode(messageJson);
 
       try {
         final decryptedMessage = await _encryptionHelper.decryptMessage(
-          cipherTextBase64,
-          nonceBase64,
+          messageData['cipherText'],
+          messageData['nonce'],
           widget.secretKey,
           algorithm: algorithm,
         );
@@ -143,43 +121,114 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  void _onAlgorithmSelected(String algorithm) {
-    setState(() {
-      _selectedAlgorithm = algorithm;
-    });
-
-    _notifyRecipientAboutAlgorithmChange(algorithm);
-  }
-
-  void _notifyRecipientAboutAlgorithmChange(String algorithm) {
-    _chatService.notifyAlgorithmChange(widget.receiverID, algorithm).then((_) {
-      setState(() {});
-    }).catchError((e) {
-      print("Error notifying recipient about algorithm change: $e");
-    });
-  }
-
-  void _respondToAlgorithmChange(String notificationID, bool isAccepted) async {
+  void _respondToAlgorithmChange(String notificationID, bool isAccepted,
+      String newAlgorithm) async {
     List<String> ids = [_authService.getCurrentUser()!.uid, widget.receiverID];
     ids.sort();
     String chatRoomID = ids.join('_');
 
     await _chatService
-        .respondToAlgorithmChange(chatRoomID, notificationID, isAccepted)
+        .respondToAlgorithmChange(chatRoomID, notificationID, isAccepted, newAlgorithm)
         .then((_) {
-      final message = isAccepted
-          ? 'Algorithm change accepted. Continuing with the new algorithm.'
-          : 'Algorithm change declined. Continuing with the previous algorithm.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-
       if (isAccepted) {
         setState(() {
-          _selectedAlgorithm = 'newAlgorithm'; // Replace with the actual new algorithm
+          _selectedAlgorithm = newAlgorithm;
         });
       }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isAccepted
+            ? 'Algorithm updated to $newAlgorithm'
+            : 'Algorithm change declined.'),
+      ));
     }).catchError((e) {
       print("Error responding to algorithm change: $e");
     });
+  }
+
+  Widget _buildNotificationList() {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _notificationStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) return SizedBox();
+
+        final notifications = snapshot.data!;
+        return Column(
+          children: notifications.map((notification) {
+            return AlertDialog(
+              title: Text('Algorithm Change Request'),
+              content: Text(
+                  'Change encryption algorithm to "${notification['newAlgorithm']}"?'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    _respondToAlgorithmChange(
+                        notification['id'], true, notification['newAlgorithm']);
+                  },
+                  child: Text('Accept'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    _respondToAlgorithmChange(
+                        notification['id'], false, _selectedAlgorithm);
+                  },
+                  child: Text('Decline'),
+                ),
+              ],
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  void _showAlgorithmSelection(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Select Encryption Algorithm"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<String>(
+                title: Text("AES-256"),
+                value: "AES-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<String>(
+                title: Text("ChaCha20-256"),
+                value: "CHACHA20-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _onAlgorithmSelected(String algorithm) {
+    setState(() {
+      _selectedAlgorithm = algorithm;
+    });
+
+    _chatService.notifyAlgorithmChange(widget.receiverID, algorithm);
+  }
+
+  void _showError(String message) {
+    // ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    //   content: Text(message),
+    //   backgroundColor: Colors.red,
+    // ));
+    print(message);
   }
 
   @override
@@ -214,41 +263,7 @@ class _ChatPageState extends State<ChatPage> {
                 Expanded(
                   child: _buildMessageList(),
                 ),
-                StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _notificationStream,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return SizedBox();
-                    }
-
-                    final notifications = snapshot.data!;
-                    return Column(
-                      children: notifications.map((notification) {
-                        return AlertDialog(
-                          title: Text('Algorithm Change Request'),
-                          content: Text(
-                              'The other user has requested to change the encryption algorithm to "${notification['newAlgorithm']}". Do you accept?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                _respondToAlgorithmChange(
-                                    notification['id'], true);
-                              },
-                              child: Text('Accept'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                _respondToAlgorithmChange(
-                                    notification['id'], false);
-                              },
-                              child: Text('Decline'),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
+                _buildNotificationList(),
               ],
             ),
           ),
@@ -270,7 +285,7 @@ class _ChatPageState extends State<ChatPage> {
           return Center(child: CircularProgressIndicator());
         }
 
-        if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text("No messages yet"));
         }
 
@@ -292,7 +307,7 @@ class _ChatPageState extends State<ChatPage> {
     final decryptedMessage = message['message'] as String;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Container(
         alignment: alignment,
         child: ChatBubble(
@@ -312,7 +327,8 @@ class _ChatPageState extends State<ChatPage> {
             child: MyTextField(
               controller: _messageController,
               hintText: "Type your message...",
-              obscuredText: false, onChanged: (String ) {  },
+              obscuredText: false,
+              onChanged: (value) {},
             ),
           ),
           IconButton(
@@ -321,47 +337,6 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.red,
-    ));
-  }
-
-  void _showAlgorithmSelection(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Select Encryption Algorithm"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<String>(
-                title: Text("AES-256"),
-                value: "AES-256",
-                groupValue: _selectedAlgorithm,
-                onChanged: (value) {
-                  _onAlgorithmSelected("AES-256");
-                  Navigator.of(context).pop();
-                },
-              ),
-              RadioListTile<String>(
-                title: Text("ChaCha20-256"),
-                value: "CHACHA20-256",
-                groupValue: _selectedAlgorithm,
-                onChanged: (value) {
-                  _onAlgorithmSelected("CHACHA20-256");
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

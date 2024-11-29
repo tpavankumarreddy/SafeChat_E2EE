@@ -41,8 +41,17 @@ class ChatService {
   }
 
   Future<void> respondToAlgorithmChange(
-      String chatRoomID, String notificationID, bool isAccepted) async {
+      String chatRoomID, String notificationID, bool isAccepted, String newAlgorithm) async {
     try {
+      final notificationDoc = await _firestore
+          .collection("chat_rooms")
+          .doc(chatRoomID)
+          .collection("algorithmchangenotifier")
+          .doc(notificationID)
+          .get();
+
+      if (!notificationDoc.exists) throw "Notification does not exist";
+
       if (isAccepted) {
         await _firestore
             .collection("chat_rooms")
@@ -51,10 +60,13 @@ class ChatService {
             .doc(notificationID)
             .update({'status': 'accepted'});
 
-        // Optionally update the chat room's default algorithm
+        // Update the chat room's default algorithm
         await _firestore.collection("chat_rooms").doc(chatRoomID).update({
-          'algorithm': 'newAlgorithm', // Use the actual algorithm name from notification
+          'algorithm': newAlgorithm,
         });
+
+        // Notify both users of the algorithm change
+        _notifyUsersOfAlgorithmChange(chatRoomID, newAlgorithm);
       } else {
         await _firestore
             .collection("chat_rooms")
@@ -68,6 +80,7 @@ class ChatService {
       throw e; // Propagate the error
     }
   }
+
 
   Stream<List<Map<String, dynamic>>> getAlgorithmChangeNotifications(
       String chatRoomID, String userID) {
@@ -136,5 +149,31 @@ class ChatService {
         .collection("messages")
         .orderBy("timestamp", descending: true)
         .snapshots();
+  }
+
+  Future<void> _notifyUsersOfAlgorithmChange(
+      String chatRoomID, String newAlgorithm) async {
+    try {
+      final chatRoomDoc = await _firestore.collection("chat_rooms").doc(chatRoomID).get();
+      if (chatRoomDoc.exists) {
+        final data = chatRoomDoc.data();
+        final participants = data?['participants'] as List<dynamic>?;
+
+        if (participants != null) {
+          for (var userID in participants) {
+            await _firestore
+                .collection("notifications")
+                .doc(userID)
+                .set({
+              'message': 'Algorithm has been updated to $newAlgorithm',
+              'chatRoomID': chatRoomID,
+              'timestamp': Timestamp.now(),
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print("Error notifying users of algorithm change: $e");
+    }
   }
 }

@@ -8,9 +8,9 @@ class EncryptionHelper {
 
   // Method to select encryption algorithm
   Future<Map<String, dynamic>> encryptMessage(String message, SecretKey secretKey, {required String algorithm}) async {
-    if (algorithm == 'AES') {
+    if (algorithm == 'AES-256') {
       return _encryptAES(message, secretKey);
-    } else if (algorithm == 'ChaCha20') {
+    } else if (algorithm == 'CHACHA20-256') {
       return _encryptChaCha20(message, secretKey);
     } else {
       throw UnsupportedError('Encryption algorithm not supported');
@@ -18,9 +18,9 @@ class EncryptionHelper {
   }
 
   Future<String> decryptMessage(String cipherTextBase64, String nonceBase64, SecretKey secretKey, {required String algorithm}) async {
-    if (algorithm == 'AES') {
+    if (algorithm == 'AES-256') {
       return _decryptAES(cipherTextBase64, nonceBase64, secretKey);
-    } else if (algorithm == 'ChaCha20') {
+    } else if (algorithm == 'CHACHA20-256') {
       return _decryptChaCha20(cipherTextBase64, nonceBase64, secretKey);
     } else {
       throw UnsupportedError('Decryption algorithm not supported');

@@ -31,15 +31,26 @@ class _ChatPageState extends State<ChatPage> {
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
   late final Stream<QuerySnapshot> _messageStream;
+  late final Stream<List<Map<String, dynamic>>> _notificationStream;
   List<Map<String, dynamic>> _decryptedMessages = [];
-  String _selectedAlgorithm = 'AES'; // Default encryption algorithm
-  String _recipientAlgorithm = 'AES'; // Recipient's current algorithm
+  String _selectedAlgorithm = 'AES-256'; // Default encryption algorithm
 
   @override
   void initState() {
     super.initState();
     String senderID = _authService.getCurrentUser()!.uid;
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
+    _notificationStream = _getAlgorithmChangeNotificationsStream(senderID);
+  }
+
+  Stream<List<Map<String, dynamic>>> _getAlgorithmChangeNotificationsStream(
+      String currentUserID) {
+    List<String> ids = [_authService.getCurrentUser()!.uid, widget.receiverID];
+    ids.sort();
+    String chatRoomID = ids.join('_');
+
+    return _chatService
+        .getAlgorithmChangeNotifications(chatRoomID, currentUserID);
   }
 
   Future<void> sendMessage() async {
@@ -79,21 +90,19 @@ class _ChatPageState extends State<ChatPage> {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
       if (data.isEmpty) continue;
 
-      final String algorithm = data['algorithm'] ?? 'AES'; // Default to 'AES' if no algorithm
+      final String algorithm = data['algorithm'] ?? _selectedAlgorithm; // Default to 'AES' if no algorithm
       final String messageJson = data['message'] ?? '';
 
-      // Ensure message JSON is not empty
       if (messageJson.isEmpty) {
         print("Received empty message JSON");
         continue;
       }
 
-      // If the recipient is using a different algorithm, display an error and skip decryption
       if (algorithm != _selectedAlgorithm) {
         _showError(
           'Algorithm mismatch! Both users need to use the same encryption algorithm to chat.',
         );
-        continue; // Skip to the next message if algorithms do not match
+        continue;
       }
 
       Map<String, dynamic> messageData;
@@ -101,13 +110,12 @@ class _ChatPageState extends State<ChatPage> {
         messageData = jsonDecode(messageJson);
       } catch (e) {
         print("Error parsing message JSON: $e");
-        continue; // Skip to the next message if parsing fails
+        continue;
       }
 
       final String cipherTextBase64 = messageData['cipherText'] ?? '';
       final String nonceBase64 = messageData['nonce'] ?? '';
 
-      // Ensure cipherText and nonce are not empty
       if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
         print("Received empty cipherText or nonce");
         continue;
@@ -140,17 +148,37 @@ class _ChatPageState extends State<ChatPage> {
       _selectedAlgorithm = algorithm;
     });
 
-    // Notify the recipient about the algorithm change
     _notifyRecipientAboutAlgorithmChange(algorithm);
   }
 
   void _notifyRecipientAboutAlgorithmChange(String algorithm) {
     _chatService.notifyAlgorithmChange(widget.receiverID, algorithm).then((_) {
-      setState(() {
-        _recipientAlgorithm = algorithm;
-      });
+      setState(() {});
     }).catchError((e) {
       print("Error notifying recipient about algorithm change: $e");
+    });
+  }
+
+  void _respondToAlgorithmChange(String notificationID, bool isAccepted) async {
+    List<String> ids = [_authService.getCurrentUser()!.uid, widget.receiverID];
+    ids.sort();
+    String chatRoomID = ids.join('_');
+
+    await _chatService
+        .respondToAlgorithmChange(chatRoomID, notificationID, isAccepted)
+        .then((_) {
+      final message = isAccepted
+          ? 'Algorithm change accepted. Continuing with the new algorithm.'
+          : 'Algorithm change declined. Continuing with the previous algorithm.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
+      if (isAccepted) {
+        setState(() {
+          _selectedAlgorithm = 'newAlgorithm'; // Replace with the actual new algorithm
+        });
+      }
+    }).catchError((e) {
+      print("Error responding to algorithm change: $e");
     });
   }
 
@@ -163,7 +191,7 @@ class _ChatPageState extends State<ChatPage> {
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'select_algorithm') {
-                _showAlgorithmSelection(context); // Show algorithm selection
+                _showAlgorithmSelection(context);
               }
             },
             itemBuilder: (BuildContext context) {
@@ -174,59 +202,59 @@ class _ChatPageState extends State<ChatPage> {
                 ),
               ];
             },
-            icon: Icon(Icons.more_vert), // Three dots icon
+            icon: Icon(Icons.more_vert),
           ),
         ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: _buildMessageList(),
+            child: Column(
+              children: [
+                Expanded(
+                  child: _buildMessageList(),
+                ),
+                StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _notificationStream,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return SizedBox();
+                    }
+
+                    final notifications = snapshot.data!;
+                    return Column(
+                      children: notifications.map((notification) {
+                        return AlertDialog(
+                          title: Text('Algorithm Change Request'),
+                          content: Text(
+                              'The other user has requested to change the encryption algorithm to "${notification['newAlgorithm']}". Do you accept?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                _respondToAlgorithmChange(
+                                    notification['id'], true);
+                              },
+                              child: Text('Accept'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                _respondToAlgorithmChange(
+                                    notification['id'], false);
+                              },
+                              child: Text('Decline'),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           _buildUserInput(),
         ],
       ),
-    );
-  }
-
-  // Method to show algorithm selection dialog
-  void _showAlgorithmSelection(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Select Encryption Algorithm'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text('AES'),
-                leading: Radio<String>(
-                  value: 'AES',
-                  groupValue: _selectedAlgorithm,
-                  onChanged: (String? value) {
-                    if (value != null) {
-                      _onAlgorithmSelected(value);
-                    }
-                  },
-                ),
-              ),
-              ListTile(
-                title: Text('ChaCha20'),
-                leading: Radio<String>(
-                  value: 'ChaCha20',
-                  groupValue: _selectedAlgorithm,
-                  onChanged: (String? value) {
-                    if (value != null) {
-                      _onAlgorithmSelected(value);
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -246,7 +274,6 @@ class _ChatPageState extends State<ChatPage> {
           return Center(child: Text("No messages yet"));
         }
 
-        // Decrypt messages
         _decryptMessages(snapshot.data!.docs);
 
         return ListView(
@@ -285,11 +312,7 @@ class _ChatPageState extends State<ChatPage> {
             child: MyTextField(
               controller: _messageController,
               hintText: "Type your message...",
-              obscuredText: false, // If you want to show the text, keep it false
-              onChanged: (value) {
-                // Handle the text changes here, if needed.
-                print("Text changed: $value");
-              },
+              obscuredText: false, onChanged: (String ) {  },
             ),
           ),
           IconButton(
@@ -301,10 +324,44 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // Display error message
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.red,
+    ));
+  }
+
+  void _showAlgorithmSelection(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Select Encryption Algorithm"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<String>(
+                title: Text("AES-256"),
+                value: "AES-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected("AES-256");
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<String>(
+                title: Text("ChaCha20-256"),
+                value: "CHACHA20-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected("CHACHA20-256");
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

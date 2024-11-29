@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:pinenacl/api.dart';
@@ -128,9 +129,20 @@ class IdentityKeyValidation {
 
     try {
       // Fetch the user's private key using the email
-      PrivateKey myPrivateKey = await fetchUserPrivateKey(
-          email); // Use email here
+      // PrivateKey myPrivateKey = await fetchUserPrivateKey(
+      //     email); // Use email here
 
+      // Extract the private key from the client key pair
+      final List<int> privateKeyList = await clientKeyPair
+          .extractPrivateKeyBytes();
+      final Uint8List privateKeyBytes = Uint8List.fromList(privateKeyList);
+
+
+      print(
+          'Private identity key successfully retrieved from key pair. $privateKeyBytes');
+      final PrivateKey myPrivateKey = PrivateKey(privateKeyBytes);
+
+      print('Private key successfully retrieved and assigned to myPrivateKey.');
       // Calling cloud function userpub1
       print('Calling cloud function userpub1 with UID: $uid');
       HttpsCallable callable = FirebaseFunctions.instance.httpsCallable(
@@ -167,20 +179,22 @@ class IdentityKeyValidation {
             encryptedNonceData, receivedEncryptionNonce, myPrivateKey,
             globalPublicKey);
         print('Decrypted Nonce: ${base64Encode(decryptedNonce)}');
+        Uint8List first24Bytes = decryptedNonce.sublist(0, 24);
 
-        // Re-encrypt the nonce to send back
-        EncryptedMessage reEncryptedNonce = encryptNonce(
-            decryptedNonce, myPrivateKey, globalPublicKey);
-        print(
-            'Re-encrypted Nonce: ${base64Encode(reEncryptedNonce.cipherText)}');
+        // Generate a SHA-256 hash of the first 24 bytes
+        Digest sha256Hash = sha256.convert(first24Bytes);
+        Uint8List hashedNonce = Uint8List.fromList(sha256Hash.bytes);
+        print('SHA-256 Hashed Nonce: ${base64Encode(hashedNonce)}');
 
         // Call cloud function userpub2
         print('Calling cloud function userpub2 with UID: $uid');
         HttpsCallable callable2 = FirebaseFunctions.instance.httpsCallable(
             'userpub2');
+
+        // Send the hashed nonce in the cloud function reques
         final response2 = await callable2.call({
           'uid': uid,
-          'encryptedNonce': base64Encode(reEncryptedNonce.cipherText),
+          'hashedNonce': base64Encode(hashedNonce), // Send the hashed nonce
         });
 
         print('Response from userpub2: ${response2.data}');
@@ -191,10 +205,9 @@ class IdentityKeyValidation {
           print(
               'Cloud function 2 execution failed: ${response2.data['error']}');
         }
-      } else {
-        print('Cloud function 1 execution failed');
       }
-    } catch (e) {
+    }
+    catch (e) {
       print('Error calling cloud function: $e');
     }
   }

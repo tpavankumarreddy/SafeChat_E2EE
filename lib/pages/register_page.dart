@@ -250,45 +250,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    LinearProgressIndicator(
-                      value: passwordStrength,
-                      backgroundColor: Colors.grey[300],
-                      minHeight: 5,
-                      color: passwordStrength <= 1 / 4
-                          ? Colors.red
-                          : passwordStrength == 2 / 4
-                          ? Colors.yellow
-                          : passwordStrength == 3 / 4
-                          ? Colors.blue
-                          : Colors.green,
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      passwordStrength <= 1 / 4
-                          ? "Weak"
-                          : passwordStrength == 2 / 4
-                          ? "Fair"
-                          : passwordStrength == 3 / 4
-                          ? "Good"
-                          : "Strong",
-                      style: TextStyle(
-                        color: passwordStrength <= 1 / 4
-                            ? Colors.red
-                            : passwordStrength == 2 / 4
-                            ? Colors.yellow
-                            : passwordStrength == 3 / 4
-                            ? Colors.blue
-                            : Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+
               const SizedBox(height: 10),
               Stack(
                 alignment: Alignment.centerRight,
@@ -315,6 +277,28 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ],
               ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value: passwordStrength,
+                      backgroundColor: Colors.grey[300],
+                      minHeight: 5,
+                      color: passwordStrength <= 1 / 4
+                          ? Colors.red
+                          : passwordStrength == 2 / 4
+                          ? Colors.yellow
+                          : passwordStrength == 3 / 4
+                          ? Colors.blue
+                          : Colors.green,
+                    ),
+                    const SizedBox(height: 5),
+
+                  ],
+                ),
+              ),
               const SizedBox(height: 10),
               MyButton(
                 text: "R E G I S T E R",
@@ -333,6 +317,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   );
                 },
               ),
+
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

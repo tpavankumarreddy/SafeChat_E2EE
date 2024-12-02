@@ -208,6 +208,24 @@ class _ChatPageState extends State<ChatPage> {
                   Navigator.of(context).pop();
                 },
               ),
+              RadioListTile<String>(
+                title: Text("Blowfish-128"),
+                value: "Blowfish-128",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<String>(
+                title: Text("Fernet-256"),
+                value: "Fernet-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
             ],
           ),
         );

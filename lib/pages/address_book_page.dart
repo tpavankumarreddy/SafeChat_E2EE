@@ -41,7 +41,7 @@ Uint8List decryptWithPrivateKey(String encryptedData, String privateKeyPem) {
   final decryptedBytes = cipher.process(base64Decode(encryptedData));
   return decryptedBytes;
 }
-void _showQrCode(BuildContext context) async {
+void showQrDialog(BuildContext context) {
   final userEmail = authService.getCurrentUser()?.email ?? "Unknown User";
   final qrData = jsonEncode({'email': userEmail});
 
@@ -49,26 +49,23 @@ void _showQrCode(BuildContext context) async {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: const Text("Your Contact QR Code"),
-        content: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              QrImageView(
-                data: qrData,
-                version: QrVersions.auto,
-                size: 200.0,
-              ),
-              const SizedBox(height: 16),
-              Text("Email: $userEmail", style: const TextStyle(fontSize: 16)),
-            ],
+        title: const Text('Your QR Code'),
+        content: SizedBox(
+          width: 200, // Define a fixed width
+          height: 200, // Define a fixed height
+          child: Center(
+            child: qrData.isNotEmpty
+                ? QrImageView(
+              data: qrData, // Data for QR code
+              version: QrVersions.auto,
+              size: 200.0, // Explicit size for QR code
+            )
+                : const CircularProgressIndicator(), // Show a loading spinner if QR data is not ready
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
         ],
@@ -76,6 +73,7 @@ void _showQrCode(BuildContext context) async {
     },
   );
 }
+
 
 
 
@@ -124,7 +122,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
                     title: const Text('Show QR Code'),
                     onTap: () {
                       Navigator.pop(context); // Close bottom sheet
-                      _showQrCode(context);
+                      showQrDialog(context);
                     },
                   ),
                   ListTile(

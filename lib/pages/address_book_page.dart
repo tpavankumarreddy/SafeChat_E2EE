@@ -5,7 +5,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as path;
 import 'package:pointycastle/api.dart' as pc;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
@@ -132,7 +132,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
                     title: const Text('Scan QR Code'),
                     onTap: () {
                       Navigator.pop(context); // Close bottom sheet
-                      _scanQrCode();
+                      _scanQrCode(context);
                     },
                   ),
                   ListTile(
@@ -364,8 +364,11 @@ class _AddressBookPageState extends State<AddressBookPage> {
         }
 
 
-        Navigator.of(context as BuildContext).pop();
+       // Navigator.of(context as BuildContext).pop();
 
+        print("object");
+
+        if (!mounted) return;
         setState(() {
           _emails.add(nickname); // Add the nickname to the list
           _saveEmailToDatabase(email, nickname); // Save email with nickname
@@ -380,36 +383,41 @@ class _AddressBookPageState extends State<AddressBookPage> {
       }
       _emailController.clear(); // Clear the text field
       nicknameController.clear(); // Clear the nickname field
-      Navigator.of(context as BuildContext).pop(); // Close the dialog
+      //Navigator.of(context as BuildContext).pop(); // Close the dialog
     } catch (e) {
-      Navigator.of(context as BuildContext).pop();
+      //Navigator.of(context as BuildContext).pop();
       print("Error checking email: $e");
     }
   }
 
-  void _scanQrCode() async {
+  void _scanQrCode(BuildContext context) async {
     Navigator.push(
-      context as BuildContext,
+      context,
       MaterialPageRoute(
         builder: (context) => Scaffold(
           appBar: AppBar(title: const Text('Scan QR Code')),
           body: MobileScanner(
-            onDetect: (capture) async {
+            onDetect: (capture) {
               final List<Barcode> barcodes = capture.barcodes;
               final Barcode? barcode = barcodes.isNotEmpty ? barcodes.first : null;
 
               if (barcode != null && barcode.rawValue != null) {
                 final scannedData = jsonDecode(barcode.rawValue!);
                 final scannedEmail = scannedData['email'];
-                Navigator.pop(context); // Close scanner screen
-                performKeyRetrivalAndExchange(scannedEmail, scannedEmail);
+                Navigator.pop(context, scannedEmail); // Pass back data
               }
             },
           ),
         ),
       ),
-    );
+    ).then((scannedEmail) {
+      if (scannedEmail != null) {
+        performKeyRetrivalAndExchange(scannedEmail, scannedEmail);
+      }
+    });
   }
+
+
 
   void _showOptionsBottomSheet(BuildContext context, String email) {
     showModalBottomSheet(

@@ -76,75 +76,16 @@ void _showQrCode(BuildContext context) async {
     },
   );
 }
-void _scanQrCode() async {
-  Navigator.push(
-    context as BuildContext,
-    MaterialPageRoute(
-      builder: (context) => Scaffold(
-        appBar: AppBar(title: const Text('Scan QR Code')),
-        body: MobileScanner(
-          onDetect: (capture) async {
-            final List<Barcode> barcodes = capture.barcodes;
-            final Barcode? barcode = barcodes.isNotEmpty ? barcodes.first : null;
 
-            if (barcode != null && barcode.rawValue != null) {
-              final scannedData = jsonDecode(barcode.rawValue!);
-              final scannedEmail = scannedData['email'];
-              Navigator.pop(context); // Close scanner screen
 
-              // Add scanned email to the address book
-              _showAddContactDialog(scannedEmail);
-            }
-          },
-        ),
-      ),
-    ),
-  );
-}
 
-void _showAddContactDialog(String scannedEmail) {
-  final TextEditingController nicknameController = TextEditingController();
-
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text("Add Scanned Contact"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Email: $scannedEmail", style: const TextStyle(fontSize: 16)),
-            TextField(
-              controller: nicknameController,
-              decoration: const InputDecoration(labelText: 'Nickname'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final nickname = nicknameController.text;
-              _saveEmailToDatabase(scannedEmail, nickname); // Save the scanned email
-              Navigator.pop(context);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      );
-    },
-  );
-}
 
 
 
 class _AddressBookPageState extends State<AddressBookPage> {
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController nicknameController = TextEditingController();
+
   List<String> _emails = [];
 
   @override
@@ -213,8 +154,8 @@ class _AddressBookPageState extends State<AddressBookPage> {
     );
   }
 
+
   void _showEmailInputDialog(BuildContext context) {
-    final TextEditingController nicknameController = TextEditingController();
 
     showDialog(
       context: context,
@@ -260,192 +201,213 @@ class _AddressBookPageState extends State<AddressBookPage> {
                     );
                   },
                 );
-
-
-
-
-                String email = _emailController.text;
-                String nickname = nicknameController.text;
-
-                final userEmail = authService.getCurrentUser()?.email;
-                String? userIdentityKeyBase64 = await storage.read(key: "identityKeyPairPublic$userEmail");
-                String? userPreKeyBase64 = await storage.read(key: "preKeyPairPublic$userEmail");
-                String? userPreKeyPrivateBase64 = await storage.read(key: "identityKeyPairPrivate$userEmail");
-
-                print(email);
-                print(userEmail);
-                final userIdentityKey = base64Decode(userIdentityKeyBase64!);
-                print("userIdentityKey: $userIdentityKey");
-                final userPreKey = base64Decode(userPreKeyBase64!);
-                print("userPreKey: $userPreKey");
-                Uint8List privateKeyBytes = base64Decode(userPreKeyPrivateBase64!);
-                String privateKeyPem = String.fromCharCodes(privateKeyBytes);
-
-
-
-                HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('checkEmailExists');
-                final response = await callable.call({'email': email});
-
-                try {
-                  if (response.data['exists']) {
-                    print("Email exists in Firestore.");
-                    print(email);
-                    print(userEmail);
-                    HttpsCallable retrieveKeysCallable = FirebaseFunctions.instance.httpsCallable('retrieveAliceKeys');
-                    print("checking for pending messages....");
-                    final retrieveKeysResponse = await retrieveKeysCallable.call({
-                      'bobEmail': email,'aliceEmail':userEmail,
-                    });
-                    print('Response data: ${retrieveKeysResponse.data}');
-
-                    print("completed");
-                    print(retrieveKeysResponse.data['status']);
-                    if (retrieveKeysResponse.data['status'] == 'No pending messages found for this user.') {
-                      // Initiate X3DH
-                      HttpsCallable initiateX3DHCallable = FirebaseFunctions.instance.httpsCallable('initiateX3DH');
-                      final x3dhResponse = await initiateX3DHCallable.call({
-                        'email': email,
-                        'aliceEmail': '$userEmail',
-                        'aliceIdentityKey': userIdentityKeyBase64,
-                        'alicePreKey': userPreKeyBase64,
-                      });
-                      final data = x3dhResponse.data;
-                      final String bobIdentityKey = data['bobIdentityKey'];
-                      final bobPreKey = data['bobPreKey'];
-                      final bobOneTimePreKey = data['bobOneTimePreKey'];
-                      final index = data['index'];
-
-                      // final decryptedPreKeyBytes = decryptWithPrivateKey(data['encryptedPreKey'], privateKeyPem);
-                      // final decryptedPreKey = utf8.decode(decryptedPreKeyBytes);
-
-                      // final decryptedOneTimePreKeyBytes = decryptWithPrivateKey(data['encryptedOneTimePreKey'], privateKeyPem);
-                      // final decryptedOneTimePreKey = utf8.decode(decryptedOneTimePreKeyBytes);
-                      print("performing X3DH...");
-                      final x3dhResult = await x3dhHelper.performX3DHKeyAgreement(userEmail!,email,bobIdentityKey,bobOneTimePreKey,bobPreKey);
-                      SecretKey sharedSecret = x3dhResult['sharedSecret'];
-                      List<int> sharedSecretBytes = await sharedSecret.extractBytes();
-                      print("Shared secret: $sharedSecretBytes");
-
-                      await storage.write(
-                          key: 'shared_Secret_With_${email}',
-                          value: base64Encode(sharedSecretBytes));
-
-                      print('Secret key generated and stored for $email.');
-                      try {
-                        Map<String, Uint8List> keys = await KeyUtility.deriveKeys(email);
-                        print('Derived Keys: ${keys.map((key, value) => MapEntry(key, base64Encode(value)))}');
-                      } catch (e) {
-                        print('Error: $e');
-                      }
-
-                      try {
-                        // Derive keys using KeyUtility
-                        Map<String, Uint8List> derivedKeys = await KeyUtility.deriveKeys(email);
-
-                        // Store each derived key in secure storage with the respective algorithm name
-                        for (var entry in derivedKeys.entries) {
-                          final algorithmName = entry.key;
-                          final derivedKey = entry.value;
-                          await storage.write(
-                            key: 'shared_Secret_With_${email}_$algorithmName',
-                            value: base64Encode(derivedKey),
-                          );
-                          print('Derived key for $algorithmName stored for $email.');
-                        }
-                      } catch (e) {
-                        print('Error during key derivation or storage: $e');
-                      }
-                    }
-
-
-                    else if (retrieveKeysResponse.data['status'] =="yes") {
-                      print("hi");
-                      // final List<int> aliceIdentityKeyList = List<int>.from(retrieveKeysResponse.data['aliceIdentityKey']);
-                      // final List<int> alicePreKeyList = List<int>.from(retrieveKeysResponse.data['alicePreKey']);
-                      //
-                      // print('Alice Identity Key List: $aliceIdentityKeyList');
-                      // // print('Alice Pre Key List: $alicePreKeyList');
-                      // final aliceIdentityKeyString = retrieveKeysResponse.data['aliceIdentityKey'] as String;
-                      // final alicePreKeyString = retrieveKeysResponse.data['alicePreKey'] as String;
-                      //
-                      // final List<int> aliceIdentityKeyList = base64Decode(aliceIdentityKeyString);
-                      // final List<int> alicePreKeyList = base64Decode(alicePreKeyString);
-                      //
-                      // // Create SimplePublicKey instances from the decoded bytes
-                      // final aliceIdentityKey = SimplePublicKey(aliceIdentityKeyList, type: KeyPairType.x25519);
-                      // final alicePreKey = SimplePublicKey(alicePreKeyList, type: KeyPairType.x25519);
-
-
-                      final int indexOTPK = retrieveKeysResponse.data['index'];
-                      print("performing x3dh for bob ....");
-                      final x3dhResult = await x3dhHelper.performX3DHKeyAgreementForBob(userEmail!, email,retrieveKeysResponse.data);
-                      print("object");
-                      SecretKey sharedSecret = x3dhResult['sharedSecret'];
-                      List<int> sharedSecretBytes = await sharedSecret.extractBytes();
-                      await storage.write(key: 'shared_Secret_With_$email', value: base64Encode(sharedSecretBytes));
-                      print("Shared secret: $sharedSecretBytes");
-                      final storedSecretKeyString = await storage.read(key: 'shared_Secret_With_${email}');
-                      print(storedSecretKeyString);
-
-                      try {
-                        Map<String, Uint8List> keys = await KeyUtility.deriveKeys(email);
-                        print('Derived Keys: ${keys.map((key, value) => MapEntry(key, base64Encode(value)))}');
-                      } catch (e) {
-                        print('Error: $e');
-                      }
-
-                      try {
-                        // Derive keys using KeyUtility
-                        Map<String, Uint8List> derivedKeys = await KeyUtility.deriveKeys(email);
-
-                        // Store each derived key in secure storage with the respective algorithm name
-                        for (var entry in derivedKeys.entries) {
-                          final algorithmName = entry.key;
-                          final derivedKey = entry.value;
-                          await storage.write(
-                            key: 'shared_Secret_With_${email}_$algorithmName',
-                            value: base64Encode(derivedKey),
-                          );
-                          print('Derived key for $algorithmName stored for $email.');
-                        }
-                      } catch (e) {
-                        print('Error during key derivation or storage: $e');
-                      }
-
-
-                    }
-                    else {
-                      print("oh no...");
-                    }
-
-
-                    Navigator.of(context).pop();
-
-                    setState(() {
-                      _emails.add(nickname); // Add the nickname to the list
-                      _saveEmailToDatabase(email, nickname); // Save email with nickname
-
-                    });
-                  } else {
-                    Navigator.of(context).pop();
-                    print("Email does not exist.");
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Email address does not exist.'),
-                    ));
-                  }
-                  _emailController.clear(); // Clear the text field
-                  nicknameController.clear(); // Clear the nickname field
-                  Navigator.of(context).pop(); // Close the dialog
-                } catch (e) {
-                  Navigator.of(context).pop();
-                  print("Error checking email: $e");
-                }
+                performKeyRetrivalAndExchange(_emailController.text, nicknameController.text);
               },
               child: const Text('Submit'),
             ),
           ],
         );
       },
+    );
+  }
+  Future<void> performKeyRetrivalAndExchange(String email, String nickname ) async {
+
+    final userEmail = authService.getCurrentUser()?.email;
+    String? userIdentityKeyBase64 = await storage.read(key: "identityKeyPairPublic$userEmail");
+    String? userPreKeyBase64 = await storage.read(key: "preKeyPairPublic$userEmail");
+    String? userPreKeyPrivateBase64 = await storage.read(key: "identityKeyPairPrivate$userEmail");
+
+    print(email);
+    print(userEmail);
+    final userIdentityKey = base64Decode(userIdentityKeyBase64!);
+    print("userIdentityKey: $userIdentityKey");
+    final userPreKey = base64Decode(userPreKeyBase64!);
+    print("userPreKey: $userPreKey");
+    Uint8List privateKeyBytes = base64Decode(userPreKeyPrivateBase64!);
+    String privateKeyPem = String.fromCharCodes(privateKeyBytes);
+
+
+
+    HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('checkEmailExists');
+    final response = await callable.call({'email': email});
+
+    try {
+      if (response.data['exists']) {
+        print("Email exists in Firestore.");
+        print(email);
+        print(userEmail);
+        HttpsCallable retrieveKeysCallable = FirebaseFunctions.instance.httpsCallable('retrieveAliceKeys');
+        print("checking for pending messages....");
+        final retrieveKeysResponse = await retrieveKeysCallable.call({
+          'bobEmail': email,'aliceEmail':userEmail,
+        });
+        print('Response data: ${retrieveKeysResponse.data}');
+
+        print("completed");
+        print(retrieveKeysResponse.data['status']);
+        if (retrieveKeysResponse.data['status'] == 'No pending messages found for this user.') {
+          // Initiate X3DH
+          HttpsCallable initiateX3DHCallable = FirebaseFunctions.instance.httpsCallable('initiateX3DH');
+          final x3dhResponse = await initiateX3DHCallable.call({
+            'email': email,
+            'aliceEmail': '$userEmail',
+            'aliceIdentityKey': userIdentityKeyBase64,
+            'alicePreKey': userPreKeyBase64,
+          });
+          final data = x3dhResponse.data;
+          final String bobIdentityKey = data['bobIdentityKey'];
+          final bobPreKey = data['bobPreKey'];
+          final bobOneTimePreKey = data['bobOneTimePreKey'];
+          final index = data['index'];
+
+          // final decryptedPreKeyBytes = decryptWithPrivateKey(data['encryptedPreKey'], privateKeyPem);
+          // final decryptedPreKey = utf8.decode(decryptedPreKeyBytes);
+
+          // final decryptedOneTimePreKeyBytes = decryptWithPrivateKey(data['encryptedOneTimePreKey'], privateKeyPem);
+          // final decryptedOneTimePreKey = utf8.decode(decryptedOneTimePreKeyBytes);
+          print("performing X3DH...");
+          final x3dhResult = await x3dhHelper.performX3DHKeyAgreement(userEmail!,email,bobIdentityKey,bobOneTimePreKey,bobPreKey);
+          SecretKey sharedSecret = x3dhResult['sharedSecret'];
+          List<int> sharedSecretBytes = await sharedSecret.extractBytes();
+          print("Shared secret: $sharedSecretBytes");
+
+          await storage.write(
+              key: 'shared_Secret_With_${email}',
+              value: base64Encode(sharedSecretBytes));
+
+          print('Secret key generated and stored for $email.');
+          try {
+            Map<String, Uint8List> keys = await KeyUtility.deriveKeys(email);
+            print('Derived Keys: ${keys.map((key, value) => MapEntry(key, base64Encode(value)))}');
+          } catch (e) {
+            print('Error: $e');
+          }
+
+          try {
+            // Derive keys using KeyUtility
+            Map<String, Uint8List> derivedKeys = await KeyUtility.deriveKeys(email);
+
+            // Store each derived key in secure storage with the respective algorithm name
+            for (var entry in derivedKeys.entries) {
+              final algorithmName = entry.key;
+              final derivedKey = entry.value;
+              await storage.write(
+                key: 'shared_Secret_With_${email}_$algorithmName',
+                value: base64Encode(derivedKey),
+              );
+              print('Derived key for $algorithmName stored for $email.');
+            }
+          } catch (e) {
+            print('Error during key derivation or storage: $e');
+          }
+        }
+
+
+        else if (retrieveKeysResponse.data['status'] =="yes") {
+          print("hi");
+          // final List<int> aliceIdentityKeyList = List<int>.from(retrieveKeysResponse.data['aliceIdentityKey']);
+          // final List<int> alicePreKeyList = List<int>.from(retrieveKeysResponse.data['alicePreKey']);
+          //
+          // print('Alice Identity Key List: $aliceIdentityKeyList');
+          // // print('Alice Pre Key List: $alicePreKeyList');
+          // final aliceIdentityKeyString = retrieveKeysResponse.data['aliceIdentityKey'] as String;
+          // final alicePreKeyString = retrieveKeysResponse.data['alicePreKey'] as String;
+          //
+          // final List<int> aliceIdentityKeyList = base64Decode(aliceIdentityKeyString);
+          // final List<int> alicePreKeyList = base64Decode(alicePreKeyString);
+          //
+          // // Create SimplePublicKey instances from the decoded bytes
+          // final aliceIdentityKey = SimplePublicKey(aliceIdentityKeyList, type: KeyPairType.x25519);
+          // final alicePreKey = SimplePublicKey(alicePreKeyList, type: KeyPairType.x25519);
+
+
+          final int indexOTPK = retrieveKeysResponse.data['index'];
+          print("performing x3dh for bob ....");
+          final x3dhResult = await x3dhHelper.performX3DHKeyAgreementForBob(userEmail!, email,retrieveKeysResponse.data);
+          print("object");
+          SecretKey sharedSecret = x3dhResult['sharedSecret'];
+          List<int> sharedSecretBytes = await sharedSecret.extractBytes();
+          await storage.write(key: 'shared_Secret_With_$email', value: base64Encode(sharedSecretBytes));
+          print("Shared secret: $sharedSecretBytes");
+          final storedSecretKeyString = await storage.read(key: 'shared_Secret_With_${email}');
+          print(storedSecretKeyString);
+
+          try {
+            Map<String, Uint8List> keys = await KeyUtility.deriveKeys(email);
+            print('Derived Keys: ${keys.map((key, value) => MapEntry(key, base64Encode(value)))}');
+          } catch (e) {
+            print('Error: $e');
+          }
+
+          try {
+            // Derive keys using KeyUtility
+            Map<String, Uint8List> derivedKeys = await KeyUtility.deriveKeys(email);
+
+            // Store each derived key in secure storage with the respective algorithm name
+            for (var entry in derivedKeys.entries) {
+              final algorithmName = entry.key;
+              final derivedKey = entry.value;
+              await storage.write(
+                key: 'shared_Secret_With_${email}_$algorithmName',
+                value: base64Encode(derivedKey),
+              );
+              print('Derived key for $algorithmName stored for $email.');
+            }
+          } catch (e) {
+            print('Error during key derivation or storage: $e');
+          }
+
+
+        }
+        else {
+          print("oh no...");
+        }
+
+
+        Navigator.of(context as BuildContext).pop();
+
+        setState(() {
+          _emails.add(nickname); // Add the nickname to the list
+          _saveEmailToDatabase(email, nickname); // Save email with nickname
+
+        });
+      } else {
+        Navigator.of(context as BuildContext).pop();
+        print("Email does not exist.");
+        ScaffoldMessenger.of(context as BuildContext).showSnackBar(const SnackBar(
+          content: Text('Email address does not exist.'),
+        ));
+      }
+      _emailController.clear(); // Clear the text field
+      nicknameController.clear(); // Clear the nickname field
+      Navigator.of(context as BuildContext).pop(); // Close the dialog
+    } catch (e) {
+      Navigator.of(context as BuildContext).pop();
+      print("Error checking email: $e");
+    }
+  }
+
+  void _scanQrCode() async {
+    Navigator.push(
+      context as BuildContext,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Scan QR Code')),
+          body: MobileScanner(
+            onDetect: (capture) async {
+              final List<Barcode> barcodes = capture.barcodes;
+              final Barcode? barcode = barcodes.isNotEmpty ? barcodes.first : null;
+
+              if (barcode != null && barcode.rawValue != null) {
+                final scannedData = jsonDecode(barcode.rawValue!);
+                final scannedEmail = scannedData['email'];
+                Navigator.pop(context); // Close scanner screen
+                performKeyRetrivalAndExchange(scannedEmail, scannedEmail);
+              }
+            },
+          ),
+        ),
+      ),
     );
   }
 

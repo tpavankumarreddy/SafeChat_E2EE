@@ -4,9 +4,12 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path/path.dart';
 import 'package:pointycastle/api.dart' as pc;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../components/user_tile.dart';
 import '../crypto/KeyUtility.dart';
 import '../crypto/X3DHHelper.dart';
@@ -38,6 +41,107 @@ Uint8List decryptWithPrivateKey(String encryptedData, String privateKeyPem) {
   final decryptedBytes = cipher.process(base64Decode(encryptedData));
   return decryptedBytes;
 }
+void _showQrCode(BuildContext context) async {
+  final userEmail = authService.getCurrentUser()?.email ?? "Unknown User";
+  final qrData = jsonEncode({'email': userEmail});
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text("Your Contact QR Code"),
+        content: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              QrImageView(
+                data: qrData,
+                version: QrVersions.auto,
+                size: 200.0,
+              ),
+              const SizedBox(height: 16),
+              Text("Email: $userEmail", style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    },
+  );
+}
+void _scanQrCode() async {
+  Navigator.push(
+    context as BuildContext,
+    MaterialPageRoute(
+      builder: (context) => Scaffold(
+        appBar: AppBar(title: const Text('Scan QR Code')),
+        body: MobileScanner(
+          onDetect: (capture) async {
+            final List<Barcode> barcodes = capture.barcodes;
+            final Barcode? barcode = barcodes.isNotEmpty ? barcodes.first : null;
+
+            if (barcode != null && barcode.rawValue != null) {
+              final scannedData = jsonDecode(barcode.rawValue!);
+              final scannedEmail = scannedData['email'];
+              Navigator.pop(context); // Close scanner screen
+
+              // Add scanned email to the address book
+              _showAddContactDialog(scannedEmail);
+            }
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+void _showAddContactDialog(String scannedEmail) {
+  final TextEditingController nicknameController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text("Add Scanned Contact"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Email: $scannedEmail", style: const TextStyle(fontSize: 16)),
+            TextField(
+              controller: nicknameController,
+              decoration: const InputDecoration(labelText: 'Nickname'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final nickname = nicknameController.text;
+              _saveEmailToDatabase(scannedEmail, nickname); // Save the scanned email
+              Navigator.pop(context);
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
 
 class _AddressBookPageState extends State<AddressBookPage> {
   final TextEditingController _emailController = TextEditingController();
@@ -68,10 +172,44 @@ class _AddressBookPageState extends State<AddressBookPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _showEmailInputDialog(context);
+          showModalBottomSheet(
+            context: context,
+            builder: (BuildContext context) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.qr_code),
+                    title: const Text('Show QR Code'),
+                    onTap: () {
+                      Navigator.pop(context); // Close bottom sheet
+                      _showQrCode(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.qr_code_scanner),
+                    title: const Text('Scan QR Code'),
+                    onTap: () {
+                      Navigator.pop(context); // Close bottom sheet
+                      _scanQrCode();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.add),
+                    title: const Text('Add Contact Manually'),
+                    onTap: () {
+                      Navigator.pop(context); // Close bottom sheet
+                      _showEmailInputDialog(context);
+                    },
+                  ),
+                ],
+              );
+            },
+          );
         },
         child: const Icon(Icons.add),
       ),
+
     );
   }
 

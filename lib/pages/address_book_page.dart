@@ -394,26 +394,44 @@ class _AddressBookPageState extends State<AddressBookPage> {
       MaterialPageRoute(
         builder: (context) => Scaffold(
           appBar: AppBar(title: const Text('Scan QR Code')),
-          body: MobileScanner(
-            onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              final Barcode? barcode = barcodes.isNotEmpty ? barcodes.first : null;
+          body: Center(
+            child: SizedBox(
+              width: 300, // Restrict width
+              height: 400, // Restrict height
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  MobileScanner(
+                    onDetect: (capture) async {
+                      final List<Barcode> barcodes = capture.barcodes;
+                      final Barcode? barcode =
+                      barcodes.isNotEmpty ? barcodes.first : null;
 
-              if (barcode != null && barcode.rawValue != null) {
-                final scannedData = jsonDecode(barcode.rawValue!);
-                final scannedEmail = scannedData['email'];
-                Navigator.pop(context, scannedEmail); // Pass back data
-              }
-            },
+                      if (barcode != null && barcode.rawValue != null) {
+                        final scannedData = jsonDecode(barcode.rawValue!);
+                        final scannedEmail = scannedData['email'];
+                        Navigator.pop(context); // Close scanner screen
+                        performKeyRetrivalAndExchange(
+                            scannedEmail, scannedEmail);
+                      }
+                    },
+                  ),
+                  Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.red, width: 2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
-    ).then((scannedEmail) {
-      if (scannedEmail != null) {
-        performKeyRetrivalAndExchange(scannedEmail, scannedEmail);
-      }
-    });
+    );
   }
+
 
 
 

@@ -75,71 +75,111 @@ class SettingsPageState extends State<SettingsPage> {
       throw Exception('Error deleting user data: $e');
     }
   }
-
-  // Function to delete user account and associated data
   Future<void> deleteAccount(BuildContext parentContext) async {
+    final TextEditingController passwordController = TextEditingController();
+
+    // Show dialog to ask for password
     showDialog(
-      context: context,
+      context: parentContext,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Account'),
-          content: const Text('Are you sure you want to delete your account and all associated data? This action cannot be undone. Note: Your chats will not be deleted.'),
+          title: const Text('Re-authentication Required'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Please enter your password to proceed with account deletion.'),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password'),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Close the dialog
               },
               child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  final userId = _firebaseAuth.currentUser?.uid;
+                final password = passwordController.text.trim();
+                Navigator.of(context).pop(); // Close the dialog
 
-                  if (userId != null) {
-                    // Delete user data from Firestore
-                    await deleteUserData(userId);
-                  }
-
-                  // Delete the user account
-                  await FirebaseAuth.instance.currentUser?.delete();
-
-                  print("account deleted");
-                  // Ensure you're using the valid parentContext to show the dialog
-                  if (!mounted) return;
-
-                  showDialog(
-                    context: parentContext,  // Use parentContext here
-                    builder: (context) => AlertDialog(
-                      title: const Text("Account Deleted"),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MyApp(),
-                              ),
-                            );
-                          },
-                          child: const Text('Ok'),
-                        ),
-                      ],
-                    ),
+                if (password.isEmpty) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(content: Text('Password cannot be empty.')),
                   );
+                  return;
+                }
+
+                try {
+                  // Re-authenticate the user
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user?.email != null) {
+                    final credential = EmailAuthProvider.credential(
+                      email: user!.email!,
+                      password: password,
+                    );
+
+                    await user.reauthenticateWithCredential(credential);
+
+                    // Proceed with account deletion
+                    final userId = user.uid;
+
+                    if (userId != null) {
+                      // Delete user data from Firestore
+                      await deleteUserData(userId);
+                    }
+
+                    // Delete the user account
+                    await FirebaseAuth.instance.currentUser?.delete();
+
+                    print("Account deleted");
+
+                    if (!mounted) return;
+
+                    // Show account deletion confirmation dialog
+                    showDialog(
+                      context: parentContext,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Account Deleted"),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MyApp(),
+                                ),
+                              );
+                            },
+                            child: const Text('Ok'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                 } catch (e) {
-                  print('Error deleting account: $e');
+                  if (e is FirebaseAuthException && e.code == 'wrong-password') {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(content: Text('Incorrect password. Please try again.')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      SnackBar(content: Text('Error: ${e.toString()}')),
+                    );
+                  }
                 }
               },
-              child: const Text('Delete'),
+              child: const Text('Confirm'),
             ),
           ],
         );
       },
     );
-
   }
 
 

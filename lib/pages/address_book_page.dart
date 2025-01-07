@@ -200,6 +200,11 @@ class _AddressBookPageState extends State<AddressBookPage> {
                   },
                 );
                 performKeyRetrivalAndExchange(_emailController.text, nicknameController.text);
+                setState(() {
+                  _emails.add(nicknameController.text); // Add the nickname to the list
+                  _saveEmailToDatabase(_emailController.text, nicknameController.text); // Save email with nickname
+
+                });
               },
               child: const Text('Submit'),
             ),
@@ -367,11 +372,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
         print("object");
 
         if (!mounted) return;
-        setState(() {
-          _emails.add(nickname); // Add the nickname to the list
-          _saveEmailToDatabase(email, nickname); // Save email with nickname
 
-        });
       } else {
         Navigator.of(context as BuildContext).pop();
         print("Email does not exist.");
@@ -413,6 +414,12 @@ class _AddressBookPageState extends State<AddressBookPage> {
                         Navigator.pop(context); // Close scanner screen
                         performKeyRetrivalAndExchange(
                             scannedEmail, scannedEmail);
+
+                        setState(() {
+                          _emails.add(scannedEmail); // Add the nickname to the list
+                          _saveEmailToDatabase(scannedEmail, scannedEmail); // Save email with nickname
+
+                        });
                       }
                     },
                   ),

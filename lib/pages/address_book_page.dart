@@ -389,6 +389,9 @@ class _AddressBookPageState extends State<AddressBookPage> {
     }
   }
 
+
+
+
   void _scanQrCode(BuildContext context) async {
     Navigator.push(
       context,
@@ -411,14 +414,16 @@ class _AddressBookPageState extends State<AddressBookPage> {
                       if (barcode != null && barcode.rawValue != null) {
                         final scannedData = jsonDecode(barcode.rawValue!);
                         final scannedEmail = scannedData['email'];
+
                         Navigator.pop(context); // Close scanner screen
-                        performKeyRetrivalAndExchange(
-                            scannedEmail, scannedEmail);
 
+                        // Perform key retrieval without adding the email here
+                        await performKeyRetrivalAndExchange(scannedEmail, scannedEmail);
+
+                        // Add email to list and database only once here
                         setState(() {
-                          _emails.add(scannedEmail); // Add the nickname to the list
-                          _saveEmailToDatabase(scannedEmail, scannedEmail); // Save email with nickname
-
+                          _emails.add(scannedEmail);
+                          _saveEmailToDatabase(scannedEmail, scannedEmail);
                         });
                       }
                     },
@@ -438,6 +443,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
       ),
     );
   }
+
 
 
 

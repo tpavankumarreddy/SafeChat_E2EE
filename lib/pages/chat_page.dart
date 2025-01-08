@@ -30,6 +30,10 @@ class _ChatPageState extends State<ChatPage> {
   final AuthService _authService = AuthService();
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
+  late Stream<String?> _algorithmStream;
+  String _selectedAlgorithm = 'AES-256';
+
+
   late final Stream<QuerySnapshot> _messageStream;
   List<Map<String, dynamic>> _decryptedMessages = [];
 
@@ -104,6 +108,60 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+
+  void _showAlgorithmSelection(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Select Encryption Algorithm"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<String>(
+                title: Text("AES-256"),
+                value: "AES-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<String>(
+                title: Text("ChaCha20-256"),
+                value: "CHACHA20-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<String>(
+                title: Text("sm4-128"),
+                value: "sm4-128",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<String>(
+                title: Text("blowfish-256"),
+                value: "blowfish-256",
+                groupValue: _selectedAlgorithm,
+                onChanged: (value) {
+                  _onAlgorithmSelected(value!);
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,6 +218,34 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  void _onAlgorithmSelected(String algorithm) async {
+    setState(() {
+      _selectedAlgorithm = algorithm;
+    });
+
+    // Notify the receiver of the algorithm change with a special message
+    final algorithmChangeMessage = "Encryption algorithm changed to $_selectedAlgorithm";
+
+    try {
+      final encryptedData = await _encryptionHelper.encryptMessage(
+        algorithmChangeMessage,
+        widget.secretKey,
+      );
+
+      await _chatService.sendMessage(widget.receiverID, jsonEncode({
+        'cipherText': encryptedData['cipherText'],
+        'nonce': encryptedData['nonce'],
+        'isAlgorithmChange': true, // Flag to indicate special formatting
+      }));
+
+    } catch (e) {
+      _showError("Failed to send algorithm change message: $e");
+    }
+  }
+
+  void _showError(String message) {
+    print(message);
+  }
   Widget _buildMessageItem(Map<String, dynamic> message) {
     bool isCurrentUser = message['isCurrentUser'];
     var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
@@ -191,6 +277,11 @@ class _ChatPageState extends State<ChatPage> {
           IconButton(
             icon: Icon(Icons.send),
             onPressed: sendMessage,
+          ),
+          IconButton(
+            icon: Icon(Icons.settings), // You can change the icon if needed
+            onPressed: () => _showAlgorithmSelection(context),
+            tooltip: "Change Algorithm",
           ),
         ],
       ),

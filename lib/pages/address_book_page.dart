@@ -548,7 +548,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
   }
 
   void deleteEmail(String email) async {
-    await DatabaseHelper.instance.deleteEmail(email);
+    await DatabaseHelper.instance.deleteByEmailOrNickname(email);
     _loadEmailsFromDatabase();
     widget.onEmailsChanged(_emails); // Notify the parent widget about the updated emails
   }

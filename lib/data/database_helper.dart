@@ -71,8 +71,30 @@ class DatabaseHelper {
       whereArgs: [email],
     );
   }
+  // Updated delete method
+  Future<int> deleteByEmailOrNickname(String emailOrNickname) async {
+    final db = await instance.database;
 
-  // Update email by email
+    // Try to delete by email
+    int result = await db.delete(
+      _tableName,
+      where: '$_columnEmail = ?',
+      whereArgs: [emailOrNickname],
+    );
+
+    // If no rows were deleted, attempt deletion by nickname
+    if (result == 0) {
+      result = await db.delete(
+        _tableName,
+        where: '$_columnName = ?',
+        whereArgs: [emailOrNickname],
+      );
+    }
+    return result;
+  }
+
+
+    // Update email by email
   Future<int> updateEmail(String oldEmail, String newEmail) async {
     final db = await instance.database;
     return await db.update(

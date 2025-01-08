@@ -255,20 +255,26 @@ class _ChatPageState extends State<ChatPage> {
     print(message);
   }
   Widget _buildMessageItem(Map<String, dynamic> message) {
-    bool isCurrentUser = message['isCurrentUser'];
-    var alignment = isCurrentUser ? Alignment.centerRight : Alignment.centerLeft;
-    final decryptedMessage = message['message'] as String;
+    final bool isCurrentUser = message['isCurrentUser'];
+    final String decryptedMessage = message['message'] as String;
+    final bool isAlgorithmChange = message['isAlgorithmChange'] ?? false;
+
+    // Define bubble colors for different cases
+    final bubbleColor = isAlgorithmChange
+        ? Colors.orangeAccent // Algorithm change messages
+        : (isCurrentUser ? Colors.green : Colors.blue.shade300); // Normal chats
 
     return Padding(
-        padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
-        child: Container(
-          alignment: alignment,
-          child: ChatBubble(
-            message: decryptedMessage,
-            isCurrentUser: isCurrentUser,
-          ),
-        ));
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: ChatBubble(
+        message: decryptedMessage,
+        isCurrentUser: isCurrentUser,
+        bubbleColor: bubbleColor,
+      ),
+    );
   }
+
+
 
   Widget _buildUserInput() {
     return Padding(

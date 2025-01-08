@@ -4,33 +4,17 @@ import 'package:cryptography/cryptography.dart';
 
 class EncryptionHelper {
   final AesCtr _aes = AesCtr.with256bits(macAlgorithm: MacAlgorithm.empty);
-  final Chacha20 _chacha20 = Chacha20(macAlgorithm: MacAlgorithm.empty);
 
-  // Method to select encryption algorithm
-  Future<Map<String, dynamic>> encryptMessage(String message, SecretKey secretKey, {required String algorithm}) async {
-    if (algorithm == 'AES-256') {
-      return _encryptAES(message, secretKey);
-    } else if (algorithm == 'CHACHA20-256') {
-      return _encryptChaCha20(message, secretKey);
-    } else {
-      throw UnsupportedError('Encryption algorithm not supported');
-    }
-  }
-
-  Future<String> decryptMessage(String cipherTextBase64, String nonceBase64, SecretKey secretKey, {required String algorithm}) async {
-    if (algorithm == 'AES-256') {
-      return _decryptAES(cipherTextBase64, nonceBase64, secretKey);
-    } else if (algorithm == 'CHACHA20-256') {
-      return _decryptChaCha20(cipherTextBase64, nonceBase64, secretKey);
-    } else {
-      throw UnsupportedError('Decryption algorithm not supported');
-    }
-  }
-
-  // AES encryption
-  Future<Map<String, dynamic>> _encryptAES(String message, SecretKey secretKey) async {
+  Future<Map<String, dynamic>> encryptMessage(String message, SecretKey secretKey) async {
     final messageBytes = Uint8List.fromList(utf8.encode(message));
     final nonce = await _aes.newNonce();
+
+    print('Encrypting message: $message');
+    print('Message bytes: $messageBytes');
+    print('Nonce: $nonce');
+    // print('Encrypting message: $message');
+    // print('Message bytes: $messageBytes');
+    // print('Nonce: $nonce');
 
     final encrypted = await _aes.encrypt(
       messageBytes,
@@ -38,64 +22,56 @@ class EncryptionHelper {
       nonce: nonce,
     );
 
+    final cipherText = base64Encode(encrypted.cipherText);
+    final encodedNonce = base64Encode(encrypted.nonce);
+
+    print('CipherText: $cipherText');
+    print('Encoded Nonce: $encodedNonce');
+    // print('CipherText: $cipherText');
+    // print('Encoded Nonce: $encodedNonce');
+
     return {
-      'cipherText': base64Encode(encrypted.cipherText),
-      'nonce': base64Encode(nonce),
+      'cipherText': cipherText,
+      'nonce': encodedNonce,
     };
   }
 
-  // AES decryption
-  Future<String> _decryptAES(String cipherTextBase64, String nonceBase64, SecretKey secretKey) async {
-    final cipherText = base64Decode(cipherTextBase64);
-    final nonce = base64Decode(nonceBase64);
+  Future<String> decryptMessage(String cipherTextBase64, String nonceBase64, SecretKey secretKey) async {
+    try {
+      final cipherText = base64Decode(cipherTextBase64);
+      final nonce = base64Decode(nonceBase64);
 
-    final encryptedData = SecretBox(
-      cipherText,
-      nonce: nonce,
-      mac: Mac.empty,
-    );
+      print('Decrypting message...');
+      print('Cipher Text (decoded): $cipherText');
+      print('Nonce (decoded): $nonce');
+      // print('Decrypting message...');
+      // print('Cipher Text (decoded): $cipherText');
+      // print('Nonce (decoded): $nonce');
 
-    final decrypted = await _aes.decrypt(
-      encryptedData,
-      secretKey: secretKey,
-    );
+      final mac = Mac.empty;
 
-    return utf8.decode(decrypted);
+      final encryptedData = SecretBox(
+        cipherText,
+        nonce: nonce,
+        mac: mac,
+      );
+
+      final decrypted = await _aes.decrypt(
+        encryptedData,
+        secretKey: secretKey,
+      );
+
+      final message = utf8.decode(decrypted);
+      print('Decrypted message: $message');
+      //print('Decrypted message: $message');
+
+      return message;
+    } catch (e) {
+      print('Error during decryption: $e');
+      // print('Error during decryption: $e');
+      throw e;
+    }
   }
 
-  // ChaCha20 encryption
-  Future<Map<String, dynamic>> _encryptChaCha20(String message, SecretKey secretKey) async {
-    final messageBytes = Uint8List.fromList(utf8.encode(message));
-    final nonce = await _chacha20.newNonce();
-
-    final encrypted = await _chacha20.encrypt(
-      messageBytes,
-      secretKey: secretKey,
-      nonce: nonce,
-    );
-
-    return {
-      'cipherText': base64Encode(encrypted.cipherText),
-      'nonce': base64Encode(nonce),
-    };
-  }
-
-  // ChaCha20 decryption
-  Future<String> _decryptChaCha20(String cipherTextBase64, String nonceBase64, SecretKey secretKey) async {
-    final cipherText = base64Decode(cipherTextBase64);
-    final nonce = base64Decode(nonceBase64);
-
-    final encryptedData = SecretBox(
-      cipherText,
-      nonce: nonce,
-      mac: Mac.empty,
-    );
-
-    final decrypted = await _chacha20.decrypt(
-      encryptedData,
-      secretKey: secretKey,
-    );
-
-    return utf8.decode(decrypted);
-  }
 }
+

@@ -65,7 +65,7 @@ dependencies:
   qr_flutter: ^4.1.0  # for generating QR codes
   qr_code_scanner: ^1.0.1  # for scanning QR codes
   mobile_scanner: ^6.0.2
-
+  sm_crypto: ^1.0.3
 
 
 

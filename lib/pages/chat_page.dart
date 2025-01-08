@@ -30,6 +30,9 @@ class _ChatPageState extends State<ChatPage> {
   final AuthService _authService = AuthService();
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
+  Map<String, SecretKey> derivedKeys = {};
+
+
   late Stream<String?> _algorithmStream;
   String _selectedAlgorithm = 'AES';
 
@@ -40,10 +43,26 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    _initializeDerivedKeys();
+
     String senderID = _authService.getCurrentUser()!.uid;
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
     print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
     //print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
+  }
+
+  Future<void> _initializeDerivedKeys() async {
+    try {
+      final masterKeyBytes = await widget.secretKey.extractBytes();
+
+      derivedKeys['AES'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
+      derivedKeys['ChaCha20'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
+      derivedKeys['SM4'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
+
+      print('Derived keys initialized.');
+    } catch (e) {
+      print('Error initializing derived keys: $e');
+    }
   }
 
   Future<void> sendMessage() async {
@@ -51,7 +70,7 @@ class _ChatPageState extends State<ChatPage> {
     //print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
 
     if (_messageController.text.isNotEmpty) {
-      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, widget.secretKey,algorithm: _selectedAlgorithm,);
+      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, derivedKeys[_selectedAlgorithm]!,algorithm: _selectedAlgorithm,);
       print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
       //print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
 
@@ -92,6 +111,7 @@ class _ChatPageState extends State<ChatPage> {
 
       final cipherTextBase64 = messageData['cipherText'] ?? '';
       final nonceBase64 = messageData['nonce'] ?? '';
+      final SecretKey? key = derivedKeys[algorithm];
 
       if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
         print("Error: Message content is missing");
@@ -100,7 +120,7 @@ class _ChatPageState extends State<ChatPage> {
       }
 
       try {
-        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, widget.secretKey, algorithm: algorithm);
+        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, key!, algorithm: algorithm);
         decryptedMessages.add({
           'message': decryptedMessage,
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
@@ -146,7 +166,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
               RadioListTile<String>(
                 title: Text("sm4-128"),
-                value: "sm4-128",
+                value: "SM4",
                 groupValue: _selectedAlgorithm,
                 onChanged: (value) {
                   _onAlgorithmSelected(value!);
@@ -189,28 +209,28 @@ class _ChatPageState extends State<ChatPage> {
     return StreamBuilder<QuerySnapshot>(
       stream: _messageStream,
       builder: (context, snapshot) {
-        print('[ChatPage - _buildMessageList] StreamBuilder triggered');
+        //print('[ChatPage - _buildMessageList] StreamBuilder triggered');
         //print('[ChatPage - _buildMessageList] StreamBuilder triggered');
 
         if (snapshot.hasError) {
-          print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
+         // print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           //print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           return Center(child: Text("Error: ${snapshot.error}"));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          print('[ChatPage - _buildMessageList] Waiting for data...');
+          //print('[ChatPage - _buildMessageList] Waiting for data...');
           //print('[ChatPage - _buildMessageList] Waiting for data...');
           return Center(child: CircularProgressIndicator());
         }
 
         if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
-          print('[ChatPage - _buildMessageList] No messages');
+          //print('[ChatPage - _buildMessageList] No messages');
           //print('[ChatPage - _buildMessageList] No messages');
           return Center(child: Text("No messages yet"));
         }
 
-        print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
+      //  print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
         //print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
 
         // Decrypt messages and update the state
@@ -225,31 +245,43 @@ class _ChatPageState extends State<ChatPage> {
       },
     );
   }
-
   void _onAlgorithmSelected(String algorithm) async {
     setState(() {
       _selectedAlgorithm = algorithm;
     });
 
-    // Notify the receiver of the algorithm change with a special message
+    // Notify the receiver of the algorithm change
     final algorithmChangeMessage = "Encryption algorithm changed to $_selectedAlgorithm";
 
     try {
+      // Use the correct key for the selected algorithm
+      final selectedKey = derivedKeys[_selectedAlgorithm];
+      if (selectedKey == null) {
+        throw Exception("No derived key found for algorithm $_selectedAlgorithm.");
+      }
+
       final encryptedData = await _encryptionHelper.encryptMessage(
         algorithmChangeMessage,
-        widget.secretKey, algorithm: _selectedAlgorithm,
+        selectedKey,
+        algorithm: _selectedAlgorithm,
       );
 
-      await _chatService.sendMessage(widget.receiverID, jsonEncode({
-        'cipherText': encryptedData['cipherText'],
-        'nonce': encryptedData['nonce'],
-        'isAlgorithmChange': true, // Flag to indicate special formatting
-      }),_selectedAlgorithm);
+      await _chatService.sendMessage(
+        widget.receiverID,
+        jsonEncode({
+          'cipherText': encryptedData['cipherText'],
+          'nonce': encryptedData['nonce'],
+          'isAlgorithmChange': true, // Flag for formatting
+        }),
+        _selectedAlgorithm,
+      );
 
+      print("Algorithm change message sent successfully.");
     } catch (e) {
       _showError("Failed to send algorithm change message: $e");
     }
   }
+
 
   void _showError(String message) {
     print(message);

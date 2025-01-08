@@ -861,6 +861,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.99"
+  sm_crypto:
+    dependency: "direct main"
+    description:
+      name: sm_crypto
+      sha256: "5f8a98cb94e0de59528bf2fca0c6382d7e830006305de83074670ee51c1565de"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.3"
   source_span:
     dependency: transitive
     description:

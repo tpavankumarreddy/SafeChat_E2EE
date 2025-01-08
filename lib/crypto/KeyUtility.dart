@@ -45,8 +45,9 @@ class KeyUtility {
   static Future<Map<String, Uint8List>> deriveKeys(String email) async {
     final Map<String, Uint8List> keys = {};
 
-    keys['AES-256'] = await deriveKey(email, 256, useFirstBits: false);
-    keys['CHACHA20-256'] = await deriveKey(email, 256, useFirstBits: false);
+    keys['AES'] = await deriveKey(email, 256, useFirstBits: false);
+    keys['ChaCha20'] = await deriveKey(email, 256, useFirstBits: false);
+    keys['SM4'] = await deriveKey(email, 128, useFirstBits: false);
 
 
     return keys;

@@ -31,7 +31,7 @@ class _ChatPageState extends State<ChatPage> {
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
   late Stream<String?> _algorithmStream;
-  String _selectedAlgorithm = 'AES-256';
+  String _selectedAlgorithm = 'AES';
 
 
   late final Stream<QuerySnapshot> _messageStream;
@@ -51,14 +51,20 @@ class _ChatPageState extends State<ChatPage> {
     //print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
 
     if (_messageController.text.isNotEmpty) {
-      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, widget.secretKey);
+      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, widget.secretKey,algorithm: _selectedAlgorithm,);
       print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
       //print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
 
-      await _chatService.sendMessage(widget.receiverID, jsonEncode({
+
+      Map<String, String> messageData = {
         'cipherText': encryptedData['cipherText'],
         'nonce': encryptedData['nonce'],
-      }));
+      };
+      await _chatService.sendMessage(
+        widget.receiverID,
+        jsonEncode(messageData), // Store as JSON string
+        _selectedAlgorithm,
+      );
       _messageController.clear();
       print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
       //print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
@@ -71,6 +77,8 @@ class _ChatPageState extends State<ChatPage> {
     for (var doc in docs) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
       if (data.isEmpty) continue;
+
+      final String algorithm = data['algorithm'] ?? 'AES'; // Default to 'AES' if no algorithm
 
       final messageJson = data['message'];
       Map<String, dynamic> messageData;
@@ -92,7 +100,7 @@ class _ChatPageState extends State<ChatPage> {
       }
 
       try {
-        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, widget.secretKey);
+        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, widget.secretKey, algorithm: algorithm);
         decryptedMessages.add({
           'message': decryptedMessage,
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
@@ -120,7 +128,7 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               RadioListTile<String>(
                 title: Text("AES-256"),
-                value: "AES-256",
+                value: "AES",
                 groupValue: _selectedAlgorithm,
                 onChanged: (value) {
                   _onAlgorithmSelected(value!);
@@ -129,7 +137,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
               RadioListTile<String>(
                 title: Text("ChaCha20-256"),
-                value: "CHACHA20-256",
+                value: "ChaCha20",
                 groupValue: _selectedAlgorithm,
                 onChanged: (value) {
                   _onAlgorithmSelected(value!);
@@ -229,14 +237,14 @@ class _ChatPageState extends State<ChatPage> {
     try {
       final encryptedData = await _encryptionHelper.encryptMessage(
         algorithmChangeMessage,
-        widget.secretKey,
+        widget.secretKey, algorithm: _selectedAlgorithm,
       );
 
       await _chatService.sendMessage(widget.receiverID, jsonEncode({
         'cipherText': encryptedData['cipherText'],
         'nonce': encryptedData['nonce'],
         'isAlgorithmChange': true, // Flag to indicate special formatting
-      }));
+      }),_selectedAlgorithm);
 
     } catch (e) {
       _showError("Failed to send algorithm change message: $e");

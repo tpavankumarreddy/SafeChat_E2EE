@@ -49,6 +49,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.11.0"
+  blowfish:
+    dependency: "direct main"
+    description:
+      name: blowfish
+      sha256: b771b47ad760bf401f09e87503b1465b2730d1d51200a4f2103f208bd4d3692f
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   boolean_selector:
     dependency: transitive
     description:

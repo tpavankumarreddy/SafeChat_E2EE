@@ -58,6 +58,7 @@ class _ChatPageState extends State<ChatPage> {
       derivedKeys['AES'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
       derivedKeys['ChaCha20'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
       derivedKeys['SM4'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
+      derivedKeys['Blowfish'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
 
       print('Derived keys initialized.');
     } catch (e) {
@@ -113,11 +114,15 @@ class _ChatPageState extends State<ChatPage> {
       final nonceBase64 = messageData['nonce'] ?? '';
       final SecretKey? key = derivedKeys[algorithm];
 
-      if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
-        print("Error: Message content is missing");
-        //print("Error: Message content is missing");
-        continue;
-      }
+      // if (messageData['algorithm']=='Blowfish'){
+      //   continue;
+      // }
+      // if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
+      //   print("Error: Message content is missing?");
+      //   //print("Error: Message content is missing");
+      //   continue;
+      // }
+
 
       try {
         final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, key!, algorithm: algorithm);
@@ -175,7 +180,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
               RadioListTile<String>(
                 title: Text("blowfish-256"),
-                value: "blowfish-256",
+                value: "Blowfish",
                 groupValue: _selectedAlgorithm,
                 onChanged: (value) {
                   _onAlgorithmSelected(value!);

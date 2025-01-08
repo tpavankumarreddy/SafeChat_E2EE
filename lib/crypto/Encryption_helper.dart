@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:sm_crypto/sm_crypto.dart'; // Import SM4 library
+import 'package:blowfish/blowfish.dart';
 
 class EncryptionHelper {
   final AesCtr _aes = AesCtr.with256bits(macAlgorithm: MacAlgorithm.empty);
@@ -11,12 +12,17 @@ class EncryptionHelper {
   // Method to select encryption algorithm
   Future<Map<String, dynamic>> encryptMessage(String message,
       SecretKey secretKey, {required String algorithm}) async {
+
+    final keyBytes = await secretKey.extract();
+
     if (algorithm == 'AES') {
       return _encryptAES(message, secretKey);
     } else if (algorithm == 'ChaCha20') {
       return _encryptChaCha20(message, secretKey);
     } else if (algorithm == 'SM4') {
       return _encryptSM4(message, secretKey);
+    } else if (algorithm == 'Blowfish') {
+      return _encryptBlowfish(message, keyBytes.bytes);
     } else {
       throw UnsupportedError('Encryption algorithm not supported');
     }
@@ -24,12 +30,16 @@ class EncryptionHelper {
 
   Future<String> decryptMessage(String cipherTextBase64, String nonceBase64,
       SecretKey secretKey, {required String algorithm}) async {
+    final keyBytes = await secretKey.extract();
+
     if (algorithm == 'AES') {
       return _decryptAES(cipherTextBase64, nonceBase64, secretKey);
     } else if (algorithm == 'ChaCha20') {
       return _decryptChaCha20(cipherTextBase64, nonceBase64, secretKey);
     } else if (algorithm == 'SM4') {
       return _decryptSM4(cipherTextBase64, nonceBase64, secretKey);
+    }  else if (algorithm == 'Blowfish') {
+      return _decryptBlowfish(cipherTextBase64, keyBytes.bytes);
     } else {
       throw UnsupportedError('Decryption algorithm not supported');
     }
@@ -158,9 +168,9 @@ class EncryptionHelper {
     final keyHex = keyBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     final ivHex = nonce.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 
-    print('CipherTextHex: $cipherTextHex');
-    print('KeyHex: $keyHex');
-    print('IVHex: $ivHex');
+    // print('CipherTextHex: $cipherTextHex');
+    // print('KeyHex: $keyHex');
+    // print('IVHex: $ivHex');
 
     try {
       // Decode the ciphertext
@@ -171,7 +181,7 @@ class EncryptionHelper {
         ),
       );
 
-      print('CipherTextBytes Length: ${cipherTextBytes.length}');
+      //print('CipherTextBytes Length: ${cipherTextBytes.length}');
       if (cipherTextBytes.length % 16 != 0) {
         throw FormatException('CipherText length is not a multiple of 16 bytes.');
       }
@@ -198,12 +208,49 @@ class EncryptionHelper {
         plainTextBytes.lastIndexWhere((b) => b != 0) + 1,
       );
 
-      print('Decrypted and Unpadded bytes: $unpaddedPlainTextBytes');
+      //print('Decrypted and Unpadded bytes: $unpaddedPlainTextBytes');
       return utf8.decode(unpaddedPlainTextBytes); // Decode to original message
     } catch (e) {
       print('Error decrypting message: $e');
       throw FormatException('Decryption failed: $e');
     }
+  }
+
+  // Blowfish encryption
+  Map<String, dynamic> _encryptBlowfish(String message, List<int> keyBytes) {
+    if (message.isEmpty) {
+      throw ArgumentError('Message content is missing');
+    }
+    if (keyBytes.isEmpty || keyBytes.length < 4) {
+      throw ArgumentError('Invalid Blowfish key provided');
+    }
+
+    final plaintextBytes = utf8.encode(message);
+    final blowfish = newBlowfish(keyBytes);
+
+    final encrypted = blowfish.encryptECB(plaintextBytes);
+
+    return {
+      'cipherText': base64Encode(encrypted),
+      'nonce': '', // ECB mode doesn't require nonce
+    };
+  }
+
+// Blowfish decryption
+  String _decryptBlowfish(String cipherTextBase64, List<int> keyBytes) {
+    if (cipherTextBase64.isEmpty) {
+      throw ArgumentError('Cipher text is missing');
+    }
+    if (keyBytes.isEmpty || keyBytes.length < 4) {
+      throw ArgumentError('Invalid Blowfish key provided');
+    }
+
+    final cipherText = base64Decode(cipherTextBase64);
+    final blowfish = newBlowfish(keyBytes);
+
+    final decryptedBytes = blowfish.decryptECB(cipherText);
+
+    return utf8.decode(decryptedBytes);
   }
 
 

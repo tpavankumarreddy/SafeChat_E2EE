@@ -114,14 +114,20 @@ class _AddressBookPageState extends State<AddressBookPage> {
                         final scannedData = jsonDecode(barcode.rawValue!);
                         final scannedEmail = scannedData['email'];
 
-                        // Close the scanner screen
-                        if (mounted) {
-                          Navigator.pop(context);
-                        }
+                        // Show a circular progress indicator
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            return Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          },
+                        );
 
-                        // Check if the email already exists in the list
-                        if (!_emails.contains(scannedEmail)) {
-                          try {
+                        try {
+                          // Check if the email already exists in the list
+                          if (!_emails.contains(scannedEmail)) {
                             // Perform key retrieval and exchange
                             await performKeyRetrivalAndExchange(
                                 scannedEmail, scannedEmail);
@@ -133,29 +139,48 @@ class _AddressBookPageState extends State<AddressBookPage> {
                                 _saveEmailToDatabase(scannedEmail, scannedEmail);
                               });
                             }
-                          } catch (e) {
-                            // Handle errors
+
+                            // Show a success message
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Error processing QR code. Please try again.')),
+                                SnackBar(
+                                  content: Text(
+                                      'The email "$scannedEmail" has been added to your address book.'),
+                                ),
+                              );
+                            }
+                          } else {
+                            // Show a message if the email already exists
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'The email "$scannedEmail" is already in your address book.'),
+                                ),
                               );
                             }
                           }
-                        } else {
-                          // Show a message if the email already exists
+                        } catch (e) {
+                          // Handle errors
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text(
-                                    'The email "$scannedEmail" is already in your address book.'),
+                                    'Error processing QR code. Please try again.'),
                               ),
                             );
                           }
+                        } finally {
+                          // Close the progress indicator and scanner screen
+                          if (mounted) {
+                            Navigator.pop(context); // Close the progress dialog
+                            Navigator.pop(context); // Close the scanner screen
+                          }
+                          isProcessing = false; // Reset the flag
                         }
+                      } else {
+                        isProcessing = false; // Reset the flag if no valid barcode
                       }
-                      isProcessing = false; // Reset the flag
                     },
                   ),
                   Container(
@@ -173,6 +198,7 @@ class _AddressBookPageState extends State<AddressBookPage> {
       ),
     );
   }
+
 
 
 

@@ -5,19 +5,27 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class DatabaseHelper {
   static Database? _database;
-  static const _tableName = 'user_data';
+  static const _userTable = 'user_data';
+  static const _messageTable = 'messages';
+
+  // Columns for user data
   static const _columnId = 'id';
   static const _columnEmail = 'email';
   static const _columnName = 'nickname';
-  static const _columnImagePath ='ImgPath';
+  static const _columnImagePath = 'ImgPath';
 
-  // Singleton pattern: Private constructor
-  DatabaseHelper._();
+  // Columns for chat messages
+  static const _columnSenderID = 'senderID';
+  static const _columnReceiverID = 'receiverID';
+  static const _columnMessage = 'message';
+  static const _columnTimestamp = 'timestamp';
+  static const _columnIsCurrentUser = 'isCurrentUser';
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static final DatabaseHelper instance = DatabaseHelper._();
 
-  // Getter for the database instance
+  DatabaseHelper._();
+
   Future<Database> get database async {
     if (_database != null) {
       return _database!;
@@ -26,66 +34,131 @@ class DatabaseHelper {
     return _database!;
   }
 
-  // Initialize database
   Future<Database> _initDatabase() async {
     final String currentUserID = _auth.currentUser!.uid;
     final path = join(await getDatabasesPath(), 'user_database$currentUserID.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
-          CREATE TABLE $_tableName (
+          CREATE TABLE $_userTable (
             $_columnId INTEGER PRIMARY KEY AUTOINCREMENT,
             $_columnEmail TEXT,
             $_columnName TEXT,
             $_columnImagePath TEXT
           )
         ''');
+        await db.execute('''
+          CREATE TABLE $_messageTable (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            $_columnSenderID TEXT,
+            $_columnReceiverID TEXT,
+            $_columnMessage TEXT,
+            $_columnTimestamp TEXT,
+            $_columnIsCurrentUser INTEGER
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE $_messageTable (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              $_columnSenderID TEXT,
+              $_columnReceiverID TEXT,
+              $_columnMessage TEXT,
+              $_columnTimestamp TEXT,
+              $_columnIsCurrentUser INTEGER
+            )
+          ''');
+        }
       },
     );
   }
 
-  // Insert email with nickname
+  // Insert decrypted chat messages into local database
+  Future<int> insertMessage({
+    required String senderID,
+    required String receiverID,
+    required String message,
+    required String timestamp,
+    required bool isCurrentUser,
+  }) async {
+    final db = await database;
+    return await db.insert(
+      _messageTable,
+      {
+        _columnSenderID: senderID,
+        _columnReceiverID: receiverID,
+        _columnMessage: message,
+        _columnTimestamp: timestamp,
+        _columnIsCurrentUser: isCurrentUser ? 1 : 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+  Future<bool> messageExists({
+    required String senderID,
+    required String receiverID,
+    required String message,
+  }) async {
+    final db = await database;
+    final result = await db.query(
+      'messages',
+      where: 'senderID = ? AND receiverID = ? AND message = ?',
+      whereArgs: [senderID, receiverID, message],
+    );
+    return result.isNotEmpty;
+  }
+
+  // Retrieve chat messages between the current user and a specific receiver
+  Future<List<Map<String, dynamic>>> getMessages(String senderID, String receiverID) async {
+    final db = await database;
+    return await db.query(
+      _messageTable,
+      where: '($_columnSenderID = ? AND $_columnReceiverID = ?) OR ($_columnSenderID = ? AND $_columnReceiverID = ?)',
+      whereArgs: [senderID, receiverID, receiverID, senderID],
+      orderBy: '$_columnTimestamp ASC',
+    );
+  }
+
+  // Clear chat messages
+  Future<void> clearChatMessages() async {
+    final db = await database;
+    await db.delete(_messageTable);
+  }
+
+  // Existing user data methods remain unchanged
+
   Future<int> insertEmail(String email, String nickname) async {
     final db = await instance.database;
-    return await db.insert(_tableName, {
+    return await db.insert(_userTable, {
       _columnEmail: email,
-      _columnName: nickname, // Save the nickname
+      _columnName: nickname,
     });
   }
 
-  // Query all emails with nicknames
   Future<List<Map<String, dynamic>>> queryAllEmailsWithNicknames() async {
     final db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.query(_tableName);
-    return maps; // Return list of maps with email and nickname
+    return await db.query(_userTable);
   }
 
-  // Delete email by email
   Future<int> deleteEmail(String email) async {
     final db = await instance.database;
-    return await db.delete(
-      _tableName,
-      where: '$_columnEmail = ?',
-      whereArgs: [email],
-    );
+    return await db.delete(_userTable, where: '$_columnEmail = ?', whereArgs: [email]);
   }
-  // Updated delete method
+
   Future<int> deleteByEmailOrNickname(String emailOrNickname) async {
     final db = await instance.database;
-
-    // Try to delete by email
     int result = await db.delete(
-      _tableName,
+      _userTable,
       where: '$_columnEmail = ?',
       whereArgs: [emailOrNickname],
     );
-
-    // If no rows were deleted, attempt deletion by nickname
     if (result == 0) {
       result = await db.delete(
-        _tableName,
+        _userTable,
         where: '$_columnName = ?',
         whereArgs: [emailOrNickname],
       );
@@ -93,63 +166,53 @@ class DatabaseHelper {
     return result;
   }
 
-
-    // Update email by email
   Future<int> updateEmail(String oldEmail, String newEmail) async {
     final db = await instance.database;
     return await db.update(
-      _tableName,
+      _userTable,
       {_columnEmail: newEmail},
       where: '$_columnEmail = ?',
       whereArgs: [oldEmail],
     );
   }
 
-  // Insert nickname and image path
   Future<int> insertProfileData(String nickname, String imagePath) async {
     final db = await instance.database;
-    return await db.insert(_tableName, {
+    return await db.insert(_userTable, {
       _columnName: nickname,
       _columnImagePath: imagePath,
     });
   }
 
-  // Query nickname and image path
   Future<Map<String, dynamic>?> queryProfileData() async {
     final db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.query(_tableName);
-    if (maps.isEmpty) return null; // No data found
-    return maps.first; // Return the first row (assuming single user profile)
+    final List<Map<String, dynamic>> maps = await db.query(_userTable);
+    if (maps.isEmpty) return null;
+    return maps.first;
   }
 
-  // Update nickname and image path
   Future<int> updateProfileData(String nickname, String imagePath) async {
     final db = await instance.database;
     return await db.update(
-      _tableName,
+      _userTable,
       {_columnName: nickname, _columnImagePath: imagePath},
       where: '$_columnId = ?',
-      whereArgs: [1], // Assuming single user profile (update based on ID)
+      whereArgs: [1],
     );
   }
 
   Future<String?> getEmailByNickname(String nickname) async {
     final db = await instance.database;
     final List<Map<String, dynamic>> maps = await db.query(
-      _tableName,
+      _userTable,
       where: '$_columnName = ?',
       whereArgs: [nickname],
     );
-    if (maps.isNotEmpty) {
-      return maps.first[_columnEmail] as String;
-    } else {
-      return null; // Return null if no email found for the nickname
-    }
+    return maps.isNotEmpty ? maps.first[_columnEmail] as String : null;
   }
 
-  // Clear all data from the database
   Future<void> clearDatabase() async {
     final db = await instance.database;
-    await db.delete(_tableName);
+    await db.delete(_userTable);
   }
 }

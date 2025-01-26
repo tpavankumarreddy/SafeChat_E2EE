@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:SafeChat/crypto/Encryption_helper.dart';
 import 'package:cryptography/cryptography.dart';
 
+import '../data/database_helper.dart';
+
 class ChatPage extends StatefulWidget {
   final String receiverEmail;
   final String receiverID;
@@ -31,8 +33,6 @@ class _ChatPageState extends State<ChatPage> {
   final EncryptionHelper _encryptionHelper = EncryptionHelper();
 
   Map<String, SecretKey> derivedKeys = {};
-
-
   late Stream<String?> _algorithmStream;
   String _selectedAlgorithm = 'AES';
 
@@ -47,8 +47,25 @@ class _ChatPageState extends State<ChatPage> {
 
     String senderID = _authService.getCurrentUser()!.uid;
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
+
+    // Listen for new messages
+    _messageStream.listen((snapshot) {
+      if (snapshot.docs.isNotEmpty) {
+        print("[ChatPage] New messages received");
+        _decryptMessages(snapshot.docs); // Decrypt and update state
+      }
+    });
+
     print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
-    //print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
+  }
+
+
+
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeDerivedKeys() async {
@@ -67,79 +84,82 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> sendMessage() async {
-    print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
-    //print('[ChatPage - sendMessage] Line 17: sendMessage called with message: ${_messageController.text}');
-
     if (_messageController.text.isNotEmpty) {
-      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, derivedKeys[_selectedAlgorithm]!,algorithm: _selectedAlgorithm,);
-      print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
-      //print('[ChatPage - sendMessage] Line 20: Encrypted data: $encryptedData');
+      // Encrypt the message
+      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, derivedKeys[_selectedAlgorithm]!, algorithm: _selectedAlgorithm);
 
-
+      // Prepare message data
       Map<String, String> messageData = {
         'cipherText': encryptedData['cipherText'],
         'nonce': encryptedData['nonce'],
       };
-      await _chatService.sendMessage(
-        widget.receiverID,
-        jsonEncode(messageData), // Store as JSON string
-        _selectedAlgorithm,
-      );
+
+      // Add the message to Firestore
+      await _chatService.sendMessage(widget.receiverID, jsonEncode(messageData), _selectedAlgorithm);
+
+
+
+      // Clear the message input
       _messageController.clear();
-      print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
-      //print('[ChatPage - sendMessage] Line 22: Message sent successfully and controller cleared');
     }
   }
 
+
   Future<void> _decryptMessages(List<DocumentSnapshot> docs) async {
-    List<Map<String, dynamic>> decryptedMessages = [];
+    List<Map<String, dynamic>> newMessages = [];
 
     for (var doc in docs) {
+      String messageId = doc.id;
+
+      if (processedMessageIds.contains(messageId)) continue; // Skip if already processed
+
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
       if (data.isEmpty) continue;
 
-      final String algorithm = data['algorithm'] ?? 'AES'; // Default to 'AES' if no algorithm
-
+      final String algorithm = data['algorithm'] ?? 'AES'; // Default to AES
       final messageJson = data['message'];
-      Map<String, dynamic> messageData;
-      try {
-        messageData = jsonDecode(messageJson);
-      } catch (e) {
-        print("Error decoding message content: $e");
-        //print("Error decoding message content: $e");
-        continue;
-      }
-
-      final cipherTextBase64 = messageData['cipherText'] ?? '';
-      final nonceBase64 = messageData['nonce'] ?? '';
-      final SecretKey? key = derivedKeys[algorithm];
-
-      // if (messageData['algorithm']=='Blowfish'){
-      //   continue;
-      // }
-      // if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
-      //   print("Error: Message content is missing?");
-      //   //print("Error: Message content is missing");
-      //   continue;
-      // }
-
 
       try {
-        final decryptedMessage = await _encryptionHelper.decryptMessage(cipherTextBase64, nonceBase64, key!, algorithm: algorithm);
-        decryptedMessages.add({
+        Map<String, dynamic> messageData = jsonDecode(messageJson);
+
+        final cipherTextBase64 = messageData['cipherText'] ?? '';
+        final nonceBase64 = messageData['nonce'] ?? '';
+        final SecretKey? key = derivedKeys[algorithm];
+
+        if (cipherTextBase64.isEmpty || nonceBase64.isEmpty || key == null) {
+          continue; // Skip if missing necessary data
+        }
+
+        final decryptedMessage = await _encryptionHelper.decryptMessage(
+          cipherTextBase64,
+          nonceBase64,
+          key,
+          algorithm: algorithm,
+        );
+
+        // Prepare the decrypted message to be added to the list
+        newMessages.add({
           'message': decryptedMessage,
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
+          'isAlgorithmChange': messageData['isAlgorithmChange'] ?? false,
         });
+
+        processedMessageIds.add(messageId); // Mark this message as processed
       } catch (e) {
         print("Error decrypting message: $e");
-        //print("Error decrypting message: $e");
       }
     }
 
-    setState(() {
-      _decryptedMessages = decryptedMessages;
-    });
+    // Now update the state with the new messages (appending to the top of the list)
+    if (newMessages.isNotEmpty) {
+      setState(() {
+        _decryptedMessages.insertAll(0, newMessages);
+      });
+    }
   }
+
+
+
 
 
   void _showAlgorithmSelection(BuildContext context) {
@@ -209,36 +229,25 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
+  Set<String> processedMessageIds = {}; // Store processed message IDs
 
   Widget _buildMessageList() {
     return StreamBuilder<QuerySnapshot>(
       stream: _messageStream,
       builder: (context, snapshot) {
-        //print('[ChatPage - _buildMessageList] StreamBuilder triggered');
-        //print('[ChatPage - _buildMessageList] StreamBuilder triggered');
-
         if (snapshot.hasError) {
-         // print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
-          //print('[ChatPage - _buildMessageList] Error: ${snapshot.error}');
           return Center(child: Text("Error: ${snapshot.error}"));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          //print('[ChatPage - _buildMessageList] Waiting for data...');
-          //print('[ChatPage - _buildMessageList] Waiting for data...');
           return Center(child: CircularProgressIndicator());
         }
 
-        if (!snapshot.hasData || snapshot.data == null || snapshot.data!.docs.isEmpty) {
-          //print('[ChatPage - _buildMessageList] No messages');
-          //print('[ChatPage - _buildMessageList] No messages');
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text("No messages yet"));
         }
 
-      //  print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
-        //print('[ChatPage - _buildMessageList] Messages count: ${snapshot.data!.docs.length}');
-
-        // Decrypt messages and update the state
+        // Decrypt messages asynchronously while preserving existing ones
         _decryptMessages(snapshot.data!.docs);
 
         return ListView(
@@ -250,6 +259,10 @@ class _ChatPageState extends State<ChatPage> {
       },
     );
   }
+
+
+
+
   void _onAlgorithmSelected(String algorithm) async {
     setState(() {
       _selectedAlgorithm = algorithm;

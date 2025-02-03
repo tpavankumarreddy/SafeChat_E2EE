@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:SafeChat/components/chat_bubble.dart';
@@ -36,16 +37,20 @@ class _ChatPageState extends State<ChatPage> {
   late Stream<String?> _algorithmStream;
   String _selectedAlgorithm = 'AES';
 
-
   late final Stream<QuerySnapshot> _messageStream;
   List<Map<String, dynamic>> _decryptedMessages = [];
+
+  // Disappearing messages feature
+  bool _isDisappearingMessagesEnabled = false;
+  Duration _disappearingDuration = Duration(seconds: 10); // Default duration
+  bool _isClockButtonVisible = false;
 
   @override
   void initState() {
     super.initState();
     _initializeDerivedKeys();
-
     String senderID = _authService.getCurrentUser()!.uid;
+
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
 
     // Listen for new messages
@@ -58,9 +63,6 @@ class _ChatPageState extends State<ChatPage> {
 
     print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
   }
-
-
-
 
   @override
   void dispose() {
@@ -86,7 +88,11 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> sendMessage() async {
     if (_messageController.text.isNotEmpty) {
       // Encrypt the message
-      final encryptedData = await _encryptionHelper.encryptMessage(_messageController.text, derivedKeys[_selectedAlgorithm]!, algorithm: _selectedAlgorithm);
+      final encryptedData = await _encryptionHelper.encryptMessage(
+        _messageController.text,
+        derivedKeys[_selectedAlgorithm]!,
+        algorithm: _selectedAlgorithm,
+      );
 
       // Prepare message data
       Map<String, String> messageData = {
@@ -95,16 +101,21 @@ class _ChatPageState extends State<ChatPage> {
       };
 
       // Add the message to Firestore
-      await _chatService.sendMessage(widget.receiverID, jsonEncode(messageData), _selectedAlgorithm);
+      String? messageId = await _chatService.sendMessage(
+        widget.receiverID,
+        jsonEncode(messageData),
+        _selectedAlgorithm,
+      );
 
-
+      // If disappearing messages is enabled, schedule deletion
+      if (_isDisappearingMessagesEnabled) {
+        _scheduleMessageDeletion(messageId!);
+      }
 
       // Clear the message input
       _messageController.clear();
     }
   }
-
-
   Future<void> _decryptMessages(List<DocumentSnapshot> docs) async {
     List<Map<String, dynamic>> newMessages = [];
 
@@ -158,9 +169,188 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
+  void _scheduleMessageDeletion(String messageId) async {
+    String senderID = _authService.getCurrentUser()!.uid;
 
+    await Future.delayed(_disappearingDuration);
+    await _chatService.deleteMessage(senderID,widget.receiverID, messageId);
+  }
 
+  void _toggleDisappearingMessages() {
+    setState(() {
+      _isDisappearingMessagesEnabled = !_isDisappearingMessagesEnabled;
+      _isClockButtonVisible = _isDisappearingMessagesEnabled;
+    });
+  }
 
+  void _showDurationSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Select Disappearing Duration"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<Duration>(
+                title: Text("10 Seconds"),
+                value: Duration(seconds: 10),
+                groupValue: _disappearingDuration,
+                onChanged: (value) {
+                  setState(() {
+                    _disappearingDuration = value!;
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<Duration>(
+                title: Text("1 Minute"),
+                value: Duration(minutes: 1),
+                groupValue: _disappearingDuration,
+                onChanged: (value) {
+                  setState(() {
+                    _disappearingDuration = value!;
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<Duration>(
+                title: Text("1 Hour"),
+                value: Duration(hours: 1),
+                groupValue: _disappearingDuration,
+                onChanged: (value) {
+                  setState(() {
+                    _disappearingDuration = value!;
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+              RadioListTile<Duration>(
+                title: Text("24 Hours"),
+                value: Duration(hours: 24),
+                groupValue: _disappearingDuration,
+                onChanged: (value) {
+                  setState(() {
+                    _disappearingDuration = value!;
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.receiverEmail)),
+      body: Column(
+        children: [
+          Expanded(
+            child: _buildMessageList(),
+          ),
+          _buildUserInput(),
+        ],
+      ),
+    );
+  }
+
+  Set<String> processedMessageIds = {}; // Store processed message IDs
+
+  Widget _buildMessageList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _messageStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text("Error: ${snapshot.error}"));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(child: Text("No messages yet"));
+        }
+
+        // Decrypt messages asynchronously while preserving existing ones
+        _decryptMessages(snapshot.data!.docs);
+
+        return ListView(
+          reverse: true,
+          children: _decryptedMessages.map((msg) {
+            return _buildMessageItem(msg);
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildMessageItem(Map<String, dynamic> message) {
+    final bool isCurrentUser = message['isCurrentUser'];
+    final String decryptedMessage = message['message'] as String;
+    final bool isAlgorithmChange = message['isAlgorithmChange'] ?? false;
+
+    // Define bubble colors for different cases
+    final bubbleColor = isAlgorithmChange
+        ? Colors.orangeAccent // Algorithm change messages
+        : (isCurrentUser ? Colors.green : Colors.blue.shade300); // Normal chats
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: ChatBubble(
+        message: decryptedMessage,
+        isCurrentUser: isCurrentUser,
+        bubbleColor: bubbleColor,
+      ),
+    );
+  }
+
+  Widget _buildUserInput() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20.0),
+      child: Row(
+        children: [
+          // Eye button to toggle disappearing messages
+          IconButton(
+            icon: Icon(
+              Icons.remove_red_eye,
+              color: _isDisappearingMessagesEnabled ? Colors.green : Colors.grey,
+            ),
+            onPressed: _toggleDisappearingMessages,
+            tooltip: "Toggle Disappearing Messages",
+          ),
+          // Clock button to select duration (visible only when disappearing messages is enabled)
+          if (_isClockButtonVisible)
+            IconButton(
+              icon: Icon(Icons.access_time),
+              onPressed: () => _showDurationSelectionDialog(context),
+              tooltip: "Select Disappearing Duration",
+            ),
+          Expanded(
+            child: MyTextField(
+              controller: _messageController,
+              hintText: 'Type a message',
+              obscuredText: false,
+              onChanged: (String) {},
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.send),
+            onPressed: sendMessage,
+          ),
+          IconButton(
+            icon: Icon(Icons.settings),
+            onPressed: () => _showAlgorithmSelection(context),
+            tooltip: "Change Algorithm",
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showAlgorithmSelection(BuildContext context) {
     showDialog(
@@ -214,55 +404,6 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.receiverEmail)),
-      body: Column(
-        children: [
-          Expanded(
-            child: _buildMessageList(),
-          ),
-          _buildUserInput(),
-        ],
-      ),
-    );
-  }
-  Set<String> processedMessageIds = {}; // Store processed message IDs
-
-  Widget _buildMessageList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _messageStream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text("Error: ${snapshot.error}"));
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(child: Text("No messages yet"));
-        }
-
-        // Decrypt messages asynchronously while preserving existing ones
-        _decryptMessages(snapshot.data!.docs);
-
-        return ListView(
-          reverse: true,
-          children: _decryptedMessages.map((msg) {
-            return _buildMessageItem(msg);
-          }).toList(),
-        );
-      },
-    );
-  }
-
-
-
-
   void _onAlgorithmSelected(String algorithm) async {
     setState(() {
       _selectedAlgorithm = algorithm;
@@ -300,56 +441,7 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-
   void _showError(String message) {
     print(message);
   }
-  Widget _buildMessageItem(Map<String, dynamic> message) {
-    final bool isCurrentUser = message['isCurrentUser'];
-    final String decryptedMessage = message['message'] as String;
-    final bool isAlgorithmChange = message['isAlgorithmChange'] ?? false;
-
-    // Define bubble colors for different cases
-    final bubbleColor = isAlgorithmChange
-        ? Colors.orangeAccent // Algorithm change messages
-        : (isCurrentUser ? Colors.green : Colors.blue.shade300); // Normal chats
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: ChatBubble(
-        message: decryptedMessage,
-        isCurrentUser: isCurrentUser,
-        bubbleColor: bubbleColor,
-      ),
-    );
-  }
-
-
-
-  Widget _buildUserInput() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: MyTextField(
-              controller: _messageController,
-              hintText: 'Type a message',
-              obscuredText: false, onChanged: (String ) {  },
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send),
-            onPressed: sendMessage,
-          ),
-          IconButton(
-            icon: Icon(Icons.settings), // You can change the icon if needed
-            onPressed: () => _showAlgorithmSelection(context),
-            tooltip: "Change Algorithm",
-          ),
-        ],
-      ),
-    );
-  }
 }
-

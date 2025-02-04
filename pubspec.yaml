@@ -67,6 +67,7 @@ dependencies:
   mobile_scanner: ^6.0.2
   sm_crypto: ^1.0.3
   blowfish: ^1.0.2
+  flutter_windowmanager: ^0.2.0
 
 
 

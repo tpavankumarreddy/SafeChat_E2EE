@@ -49,28 +49,36 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _initializeDerivedKeys();
+
     String senderID = _authService.getCurrentUser()!.uid;
 
+    // Initialize message stream only once
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
-    _chatService.listenForMessages(senderID, widget.receiverID);
+
+    // Sync messages to local DB
     _chatService.syncMessagesToLocalDB(senderID, widget.receiverID);
+
     // Listen for new messages and decrypt
     _messageStream.listen((snapshot) async {
       if (snapshot.docs.isNotEmpty) {
         print("[ChatPage] New messages received");
         await _decryptMessages(snapshot.docs);
-        setState(() {}); // Update UI after decrypting messages
+
+        // Check if the widget is still mounted before updating the UI
+        if (mounted) {
+          setState(() {}); // Update UI after decrypting messages
+        }
       }
     });
 
     print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
   }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
+  //
+  // @override
+  // void dispose() {
+  //   _messageController.dispose();
+  //   super.dispose();
+  // }
 
   Future<void> _initializeDerivedKeys() async {
     try {
@@ -124,6 +132,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _decryptMessages(List<DocumentSnapshot> docs) async {
+    if (!mounted) return;
     List<Map<String, dynamic>> newMessages = [];
 
     for (var doc in docs) {
@@ -177,12 +186,43 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  void _scheduleMessageDeletion(String messageId) async {
-    String senderID = _authService.getCurrentUser()!.uid;
+  final Set<Future<void>> _pendingDeletionTasks = {};
 
-    await Future.delayed(_disappearingDuration);
-    await _chatService.deleteMessage(senderID,widget.receiverID, messageId);
+  void _scheduleMessageDeletion(String messageId) async {
+    try {
+      String? senderID = _authService.getCurrentUser()?.uid;
+      if (senderID == null) return;
+
+      final deletionTask = Future.delayed(_disappearingDuration).then((_) async {
+        if (!mounted) return;
+
+        await _chatService.deleteMessage(senderID, widget.receiverID, messageId);
+
+        if (!mounted) return;
+
+        setState(() {
+          _decryptedMessages.removeWhere((msg) => msg['messageId'] == messageId);
+        });
+      });
+
+      _pendingDeletionTasks.add(deletionTask);
+    } catch (e) {
+      print("Error deleting message: $e");
+    }
   }
+
+  @override
+  void dispose() {
+    // Cancel all pending deletion tasks
+    for (var task in _pendingDeletionTasks) {
+      task.ignore(); // Ignore the result of the task
+    }
+    _pendingDeletionTasks.clear();
+
+    _messageController.dispose();
+    super.dispose();
+  }
+
 
   void _toggleDisappearingMessages() {
     setState(() {

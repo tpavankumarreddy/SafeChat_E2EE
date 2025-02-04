@@ -41,38 +41,47 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'user_database$currentUserID.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3, // Increment the version number
       onCreate: (db, version) async {
         await db.execute('''
-          CREATE TABLE $_userTable (
-            $_columnId INTEGER PRIMARY KEY AUTOINCREMENT,
-            $_columnEmail TEXT,
-            $_columnName TEXT,
-            $_columnImagePath TEXT
-          )
-        ''');
+        CREATE TABLE $_userTable (
+          $_columnId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $_columnEmail TEXT,
+          $_columnName TEXT,
+          $_columnImagePath TEXT
+        )
+      ''');
         await db.execute('''
-          CREATE TABLE $_messageTable (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            $_columnMessageID TEXT,
-            $_columnSenderID TEXT,
-            $_columnReceiverID TEXT,
-            $_columnMessage TEXT,
-            $_columnTimestamp TEXT,
-            $_columnIsCurrentUser INTEGER
-          )
-        ''');
+        CREATE TABLE $_messageTable (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          $_columnMessageID TEXT,
+          $_columnSenderID TEXT,
+          $_columnReceiverID TEXT,
+          $_columnMessage TEXT,
+          $_columnTimestamp TEXT,
+          $_columnIsCurrentUser INTEGER
+        )
+      ''');
+        await db.execute('''
+        CREATE TABLE groups (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_name TEXT UNIQUE
+        )
+      '''); // Create a groups table
       },
-      // onUpgrade: (db, oldVersion, newVersion) async {
-      //   if (oldVersion < 2) {
-      //     // Adding the messageID column in the existing table during upgrade
-      //     await db.execute('''
-      //       ALTER TABLE $_messageTable ADD COLUMN $_columnMessageID TEXT;
-      //     ''');
-      //   }
-      // },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 3) {
+          await db.execute('''
+          CREATE TABLE IF NOT EXISTS groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_name TEXT UNIQUE
+          )
+        '''); // Ensure groups table is added on upgrade
+        }
+      },
     );
   }
+
 
   Future<bool> messageExists(String messageID) async {
     final db = await database;
@@ -220,4 +229,27 @@ class DatabaseHelper {
     final db = await instance.database;
     await db.delete(_userTable);
   }
+  Future<List<Map<String, dynamic>>> queryAllGroups() async {
+    final db = await database;
+    return await db.query('groups'); // Fetch all groups from SQLite
+  }
+
+  Future<int> insertGroup(String groupName, List<String> members) async {
+    final db = await database;
+
+    // Convert members list to a single string (comma-separated)
+    String membersString = members.join(',');
+
+    return await db.insert(
+      'groups',
+      {
+        'group_name': groupName,
+        'members': membersString, // Store as a string
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate groups
+    );
+  }
+
+
 }
+

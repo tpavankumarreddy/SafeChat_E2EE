@@ -149,6 +149,11 @@ class DatabaseHelper {
     return await db.delete(_userTable, where: '$_columnEmail = ?', whereArgs: [email]);
   }
 
+  Future<int> deleteMessage(String messageID) async {
+    final db = await instance.database;
+    return await db.delete(_messageTable, where: '$_columnMessageID = ?', whereArgs: [messageID]);
+  }
+
   Future<int> deleteByEmailOrNickname(String emailOrNickname) async {
     final db = await instance.database;
     int result = await db.delete(

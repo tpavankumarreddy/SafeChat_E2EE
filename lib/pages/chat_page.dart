@@ -131,24 +131,25 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Future<void> _decryptMessages(List<DocumentSnapshot> docs) async {
+  Set<String> processedMessageIds = {}; // Track processed message IDs
+
+  Future _decryptMessages(List docs) async {
     if (!mounted) return;
-    List<Map<String, dynamic>> newMessages = [];
 
     for (var doc in docs) {
       String messageId = doc.id;
 
-      if (processedMessageIds.contains(messageId)) continue; // Skip if already processed
+      // Skip if already processed
+      if (processedMessageIds.contains(messageId)) continue;
 
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
+      Map data = doc.data() as Map? ?? {};
       if (data.isEmpty) continue;
 
       final String algorithm = data['algorithm'] ?? 'AES'; // Default to AES
       final messageJson = data['message'];
 
       try {
-        Map<String, dynamic> messageData = jsonDecode(messageJson);
-
+        Map messageData = jsonDecode(messageJson);
         final cipherTextBase64 = messageData['cipherText'] ?? '';
         final nonceBase64 = messageData['nonce'] ?? '';
         final SecretKey? key = derivedKeys[algorithm];
@@ -165,24 +166,23 @@ class _ChatPageState extends State<ChatPage> {
         );
 
         // Prepare the decrypted message to be added to the list
-        newMessages.add({
+        _decryptedMessages.insert(0, {
           'message': decryptedMessage,
           'messageId': messageId, // Store the message ID
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
           'isAlgorithmChange': messageData['isAlgorithmChange'] ?? false,
         });
 
-        processedMessageIds.add(messageId); // Mark this message as processed
+        // Mark this message as processed
+        processedMessageIds.add(messageId);
       } catch (e) {
         print("Error decrypting message: $e");
       }
     }
 
-    // Now update the state with the new messages (appending to the top of the list)
-    if (newMessages.isNotEmpty) {
-      setState(() {
-        _decryptedMessages.insertAll(0, newMessages);
-      });
+    // Update the UI
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -306,7 +306,7 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Set<String> processedMessageIds = {}; // Store processed message IDs
+  //sSet<String> processedMessageIds = {}; // Store processed message IDs
 
   Widget _buildMessageList() {
     return StreamBuilder<QuerySnapshot>(

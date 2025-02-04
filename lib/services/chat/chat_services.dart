@@ -104,6 +104,7 @@ class ChatService {
         .collection("messages")
         .doc(messageID)
         .delete();
+    await DatabaseHelper.instance.deleteMessage(messageID);
   }
 
   Stream<QuerySnapshot> getMessages(String userID, String otherUserID) {

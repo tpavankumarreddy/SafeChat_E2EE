@@ -20,6 +20,8 @@ class DatabaseHelper {
   static const _columnMessage = 'message';
   static const _columnTimestamp = 'timestamp';
   static const _columnIsCurrentUser = 'isCurrentUser';
+  static const _columnMessageID = 'messageID';
+
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -52,6 +54,7 @@ class DatabaseHelper {
         await db.execute('''
           CREATE TABLE $_messageTable (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            $_columnMessageID TEXT,
             $_columnSenderID TEXT,
             $_columnReceiverID TEXT,
             $_columnMessage TEXT,
@@ -60,25 +63,30 @@ class DatabaseHelper {
           )
         ''');
       },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('''
-            CREATE TABLE $_messageTable (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              $_columnSenderID TEXT,
-              $_columnReceiverID TEXT,
-              $_columnMessage TEXT,
-              $_columnTimestamp TEXT,
-              $_columnIsCurrentUser INTEGER
-            )
-          ''');
-        }
-      },
+      // onUpgrade: (db, oldVersion, newVersion) async {
+      //   if (oldVersion < 2) {
+      //     // Adding the messageID column in the existing table during upgrade
+      //     await db.execute('''
+      //       ALTER TABLE $_messageTable ADD COLUMN $_columnMessageID TEXT;
+      //     ''');
+      //   }
+      // },
     );
+  }
+
+  Future<bool> messageExists(String messageID) async {
+    final db = await database;
+    final result = await db.query(
+      _messageTable,
+      where: '$_columnMessageID = ?',
+      whereArgs: [messageID],
+    );
+    return result.isNotEmpty;
   }
 
   // Insert decrypted chat messages into local database
   Future<int> insertMessage({
+    required String messageID,
     required String senderID,
     required String receiverID,
     required String message,
@@ -86,9 +94,14 @@ class DatabaseHelper {
     required bool isCurrentUser,
   }) async {
     final db = await database;
+
+    // Check if message exists before inserting
+    bool exists = await messageExists(messageID);
+    if (exists) return 0; // Skip duplicate messages
     return await db.insert(
       _messageTable,
       {
+        _columnMessageID: messageID,
         _columnSenderID: senderID,
         _columnReceiverID: receiverID,
         _columnMessage: message,
@@ -97,19 +110,6 @@ class DatabaseHelper {
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-  }
-  Future<bool> messageExists({
-    required String senderID,
-    required String receiverID,
-    required String message,
-  }) async {
-    final db = await database;
-    final result = await db.query(
-      'messages',
-      where: 'senderID = ? AND receiverID = ? AND message = ?',
-      whereArgs: [senderID, receiverID, message],
-    );
-    return result.isNotEmpty;
   }
 
   // Retrieve chat messages between the current user and a specific receiver

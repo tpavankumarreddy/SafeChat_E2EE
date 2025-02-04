@@ -52,12 +52,14 @@ class _ChatPageState extends State<ChatPage> {
     String senderID = _authService.getCurrentUser()!.uid;
 
     _messageStream = _chatService.getMessages(widget.receiverID, senderID);
-
-    // Listen for new messages
-    _messageStream.listen((snapshot) {
+    _chatService.listenForMessages(senderID, widget.receiverID);
+    _chatService.syncMessagesToLocalDB(senderID, widget.receiverID);
+    // Listen for new messages and decrypt
+    _messageStream.listen((snapshot) async {
       if (snapshot.docs.isNotEmpty) {
         print("[ChatPage] New messages received");
-        _decryptMessages(snapshot.docs); // Decrypt and update state
+        await _decryptMessages(snapshot.docs);
+        setState(() {}); // Update UI after decrypting messages
       }
     });
 
@@ -94,6 +96,8 @@ class _ChatPageState extends State<ChatPage> {
         algorithm: _selectedAlgorithm,
       );
 
+      print("[sendMessage] Encrypted message: $encryptedData");
+
       // Prepare message data
       Map<String, String> messageData = {
         'cipherText': encryptedData['cipherText'],
@@ -107,6 +111,8 @@ class _ChatPageState extends State<ChatPage> {
         _selectedAlgorithm,
       );
 
+      print("[sendMessage] Message added to Firestore with ID: $messageId");
+
       // If disappearing messages is enabled, schedule deletion
       if (_isDisappearingMessagesEnabled) {
         _scheduleMessageDeletion(messageId!);
@@ -116,6 +122,7 @@ class _ChatPageState extends State<ChatPage> {
       _messageController.clear();
     }
   }
+
   Future<void> _decryptMessages(List<DocumentSnapshot> docs) async {
     List<Map<String, dynamic>> newMessages = [];
 
@@ -151,6 +158,7 @@ class _ChatPageState extends State<ChatPage> {
         // Prepare the decrypted message to be added to the list
         newMessages.add({
           'message': decryptedMessage,
+          'messageId': messageId, // Store the message ID
           'isCurrentUser': data['senderID'] == _authService.getCurrentUser()!.uid,
           'isAlgorithmChange': messageData['isAlgorithmChange'] ?? false,
         });
@@ -277,7 +285,7 @@ class _ChatPageState extends State<ChatPage> {
         }
 
         // Decrypt messages asynchronously while preserving existing ones
-        _decryptMessages(snapshot.data!.docs);
+        _decryptNewMessages(snapshot.data!.docs);
 
         return ListView(
           reverse: true,
@@ -288,6 +296,23 @@ class _ChatPageState extends State<ChatPage> {
       },
     );
   }
+
+  void _decryptNewMessages(List<DocumentSnapshot> newMessages) async {
+    // Find the last decrypted message ID or timestamp,
+    // and only decrypt new messages
+    for (var msg in newMessages) {
+      if (!_isMessageDecrypted(msg)) {
+        await _decryptMessages(newMessages);
+      }
+    }
+  }
+
+  bool _isMessageDecrypted(DocumentSnapshot msg) {
+    // Check if the message is already decrypted or stored in local DB
+    // Compare by messageId
+    return _decryptedMessages.any((message) => message['messageId'] == msg.id);
+  }
+
 
   Widget _buildMessageItem(Map<String, dynamic> message) {
     final bool isCurrentUser = message['isCurrentUser'];

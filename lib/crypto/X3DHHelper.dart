@@ -120,11 +120,11 @@ class X3DHHelper {
     };
   }
 
-  Future<Map<String, dynamic>> performX3DHKeyAgreementForBob(String localUid, String remoteEmail,Map<String, dynamic> retrieveKeysResponse) async {
-    final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate$localUid');
-    final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic$localUid');
-    final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate$localUid');
-    final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic$localUid');
+  Future<Map<String, dynamic>> performX3DHKeyAgreementForBob(String localEmail, String remoteEmail,Map<String, dynamic> retrieveKeysResponse) async {
+    final localIdentityKeyPairPrivate = await _readFromSecureStorage('identityKeyPairPrivate$localEmail');
+    final localIdentityKeyPairPublic = await _readFromSecureStorage('identityKeyPairPublic$localEmail');
+    final localSignedPreKeyPairPrivate = await _readFromSecureStorage('preKeyPairPrivate$localEmail');
+    final localSignedPreKeyPairPublic = await _readFromSecureStorage('preKeyPairPublic$localEmail');
     print("object1");
     final aliceIdentityKeyBase64 = retrieveKeysResponse['aliceIdentityKey'];
     print("object2");
@@ -146,8 +146,8 @@ class X3DHHelper {
       List<SimpleKeyPairData> oneTimePreKeys = [];
 
       for (int i = 0; i < count; i++) {
-        String privateKeyKey = 'oneTimePreKeyPairPrivate$localUid$i';
-        String publicKeyKey = 'oneTimePreKeyPairPublic$localUid$i';
+        String privateKeyKey = 'oneTimePreKeyPairPrivate$localEmail$i';
+        String publicKeyKey = 'oneTimePreKeyPairPublic$localEmail$i';
 
         final privateKeyValue = await readFromSecureStoragee(privateKeyKey);
         final publicKeyValue = await readFromSecureStoragee(publicKeyKey);
@@ -254,8 +254,15 @@ class X3DHHelper {
     // print("Combined secret bytes length: ${combinedSecretBytes.length}");
     // print("Hash bytes length: ${hash.bytes.length}");
     // print("Hash bytes: ${hash.bytes}");
+    await _firestore.collection("pendingMessages")
+        .doc("${localEmail}_$remoteEmail")
+        .delete();
+    
+    print("pending messages deleted");
     return {
       'sharedSecret': combinedSecret,
     };
+
+
   }
 }

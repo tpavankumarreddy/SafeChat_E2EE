@@ -33,8 +33,8 @@ class _HomePageState extends State<HomePage> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final ChatService chatService = ChatService();
   late GlobalKey<ScaffoldState> _scaffoldKey;
-  late List<String> addressBookEmails;
-  late List<String> groupChats; // Store group chat names
+  late List<String> addressBookEmails=[];
+  late List<String> groupChats=[]; // Store group chat names
 
   @override
   void initState() {

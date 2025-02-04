@@ -14,6 +14,7 @@ import '../services/chat/chat_services.dart';
 import 'address_book_page.dart';
 import 'chat_page.dart';
 import '../data/database_helper.dart';
+import '../crypto/groupkey.dart';
 
 class HomePage extends StatefulWidget {
   bool isLoggedIn;
@@ -204,7 +205,7 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return StatefulBuilder( // To update UI dynamically
+        return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('Create New Group'),
@@ -212,15 +213,14 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Group Name Text Field
+                    // Group Name Field
                     TextField(
                       controller: groupNameController,
                       decoration: const InputDecoration(labelText: 'Group Name'),
                     ),
-
                     const SizedBox(height: 10),
 
-                    // Dynamically Added Member Text Fields
+                    // Dynamically Added Member Fields
                     Column(
                       children: List.generate(memberControllers.length, (index) {
                         return Padding(
@@ -235,8 +235,6 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                               ),
-
-                              // Remove Member Button (except for first field)
                               if (index > 0)
                                 IconButton(
                                   icon: const Icon(Icons.remove_circle),
@@ -254,15 +252,13 @@ class _HomePageState extends State<HomePage> {
 
                     const SizedBox(height: 10),
 
-                    // Add Member Button (Max 5)
+                    // Add Member Button (Limit: 5)
                     if (memberControllers.length < 5)
                       ElevatedButton.icon(
                         onPressed: () {
-                          if (memberControllers.length < 5) {
-                            setState(() {
-                              memberControllers.add(TextEditingController());
-                            });
-                          }
+                          setState(() {
+                            memberControllers.add(TextEditingController());
+                          });
                         },
                         icon: const Icon(Icons.add),
                         label: const Text('Add Member'),
@@ -272,7 +268,7 @@ class _HomePageState extends State<HomePage> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context), // Close dialog
+                  onPressed: () => Navigator.pop(context),
                   child: const Text('Cancel'),
                 ),
                 TextButton(
@@ -283,9 +279,31 @@ class _HomePageState extends State<HomePage> {
                         .where((email) => email.isNotEmpty)
                         .toList();
 
-                    if (groupName.isNotEmpty && members.isNotEmpty) {
-                      await DatabaseHelper.instance.insertGroup(groupName, members);
-                      _loadGroupChats(); // Refresh UI
+                    User? currentUser = FirebaseAuth.instance.currentUser;
+                    if (groupName.isNotEmpty && members.isNotEmpty && currentUser != null) {
+                      // Generate unique group ID
+                      String groupId = FirebaseFirestore.instance.collection('groups').doc().id;
+
+                      // Group data to store in Firestore
+                      Map<String, dynamic> groupData = {
+                        "groupId": groupId,
+                        "groupName": groupName,
+                        "members": members,
+                        "admin": currentUser.email, // Current user is admin
+                        "groupSecretKey": "", // Empty at the start
+                        "createdAt": FieldValue.serverTimestamp(),
+                      };
+
+                      // Store in Firestore under 'groups' collection
+                      await FirebaseFirestore.instance.collection('groups').doc(groupId).set(groupData);
+
+                      // Generate and store group key
+                      await _generateGroupKey(groupId, members);
+
+                      // Refresh UI after adding group
+                      _loadGroupChats();
+                      setState(() {}); // ✅ Force UI update
+
                       Navigator.pop(context); // Close dialog
                     }
                   },
@@ -298,6 +316,32 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
+
+
+// Function to generate and store the group key in Firestore
+  Future<void> _generateGroupKey(String groupId, List<String> members) async {
+    try {
+      // Fetch encrypted group keys for each member
+      Map<String, String> encryptedKeys = await createAndDistributeGroupKey(members, groupId);
+
+      if (encryptedKeys.isEmpty) {
+        print("Failed to generate encrypted group keys.");
+        return;
+      }
+
+      // Update Firestore with encrypted group keys
+      await FirebaseFirestore.instance.collection('groups').doc(groupId).update({
+        "groupSecretKeys": encryptedKeys,
+      });
+
+      print("Encrypted group keys stored successfully for group $groupId");
+    } catch (e) {
+      print("Error generating group key: $e");
+    }
+  }
+
+
+
 
 
   Widget _buildUserList() {
@@ -406,3 +450,5 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+

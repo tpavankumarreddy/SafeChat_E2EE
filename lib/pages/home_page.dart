@@ -119,75 +119,82 @@ class _HomePageState extends State<HomePage> {
   Future<String?> getUidForEmail(String email) async {
     try {
       final querySnapshot = await FirebaseFirestore.instance
-          .collection("users")
+          .collection("user's") // Assuming your user data is stored in a collection called 'users'
           .where('email', isEqualTo: email)
           .limit(1)
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         return querySnapshot.docs.first.data()['uid'] as String?;
+      } else {
+        print('No user found with email $email');
+        return null;
       }
     } catch (e) {
       print('Error fetching UID for email $email: $e');
+      return null;
     }
-    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: AppBar(
-        title: const Text("SafeChat"),
-      ),
-      drawer: MyDrawer(onAddressBookEmailsChanged: onAddressBookEmailsChanged),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _buildUserList(),
-          _buildGroupList(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Chats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            label: 'Groups',
-          ),
-        ],
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          if (_currentIndex == 1) {
-            _showCreateGroupDialog();
-          } else if(_currentIndex ==0) {
-            List<String>? result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddressBookPage(onEmailsChanged: onAddressBookEmailsChanged,),
-              ),
-            );
-          } else {
+    return GestureDetector(
+        onHorizontalDragUpdate: (details) {
+      if (details.delta.dx > 0) {
+        _scaffoldKey.currentState!.openDrawer();
+      }
+    },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: const Text("SafeChat"),
+        ),
+        drawer: MyDrawer(onAddressBookEmailsChanged: onAddressBookEmailsChanged),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            _buildUserList(),
+            _buildGroupList(),
+          ],
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
+          items: [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat),
+              label: 'Chats',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.group),
+              label: 'Groups',
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            if (_currentIndex == 1) {
+              _showCreateGroupDialog();
+            } else if(_currentIndex ==0) {
+              List<String>? result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddressBookPage(onEmailsChanged: onAddressBookEmailsChanged,),
+                ),
+              );
+            } else {
 
-          }
-        },
-        child: Icon(_currentIndex == 0 ? Icons.message : Icons.group_add),
-        backgroundColor: Colors.green,
-      ),
+            }
+          },
+          child: Icon(_currentIndex == 0 ? Icons.message : Icons.group_add),
+        ),
 
-      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+      ),
     );
   }
   void _showCreateGroupDialog() {
@@ -232,7 +239,7 @@ class _HomePageState extends State<HomePage> {
                               // Remove Member Button (except for first field)
                               if (index > 0)
                                 IconButton(
-                                  icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                  icon: const Icon(Icons.remove_circle),
                                   onPressed: () {
                                     setState(() {
                                       memberControllers.removeAt(index);
@@ -305,20 +312,28 @@ class _HomePageState extends State<HomePage> {
           return UserTile(
             text: name,
             onTap: () async {
-              final email =
-              await DatabaseHelper.instance.getEmailByNickname(name);
-              if (email == null) return;
+              final email = await DatabaseHelper.instance.getEmailByNickname(addressBookEmails[index]);
+              print(email);
+              if (email == null) {
+                print('No email found for the nickname');
+                return;
+              }
               final uid = await getUidForEmail(email);
-              if (uid == null) return;
-              final secretKeyString =
-              await _secureStorage.read(key: 'shared_Secret_With_$email');
+              if (uid == null) {
+                print('No UID found for email $email');
+                return;
+              }
+              final secretKeyString = await _secureStorage.read(key: 'shared_Secret_With_$email');
 
               SecretKey? generatedSecretKey;
-              if (secretKeyString != null) {
-                generatedSecretKey =
-                    SecretKey(base64Decode(secretKeyString));
-              }
 
+              if (secretKeyString == null) {
+                print("Secret key doesn't exists.");
+              } else {
+                print('Secret key already exists.');
+                final secretKeyBytes = base64Decode(secretKeyString);
+                generatedSecretKey = SecretKey(secretKeyBytes);
+              }
               if (generatedSecretKey != null) {
                 Navigator.push(
                   context,
@@ -330,6 +345,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 );
+              } else {
+                print('Error generating or retrieving the secret key.');
               }
             },
           );

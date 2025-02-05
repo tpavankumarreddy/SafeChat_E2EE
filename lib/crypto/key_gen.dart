@@ -87,6 +87,15 @@ class KeyGenerator {
       'email': email,
       'timeStamp': DateTime.now(),
     });
+    Future<void> createUserAnnouncementsDoc() async {
+      if (uid != null) {
+        FirebaseFirestore.instance.collection('group_announcements').doc(uid).set({
+          'groups': [],
+          'unread_count': 0,
+        });
+      }
+    }
+    createUserAnnouncementsDoc();
   }
 
   Future<crypto.SimplePublicKey> getServerPublicKey() async {

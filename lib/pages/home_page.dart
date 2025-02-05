@@ -6,12 +6,14 @@ import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../components/group_notifications.dart';
 import '../components/group_tile.dart';
 import '../components/my_drawer.dart';
 import '../components/user_tile.dart';
 import '../crypto/X3DHHelper.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/chat_services.dart';
+import 'Group_chatpage.dart';
 import 'address_book_page.dart';
 import 'chat_page.dart';
 import '../data/database_helper.dart';
@@ -79,7 +81,8 @@ class _HomePageState extends State<HomePage> {
   late List<Map<String, dynamic>> groupDataList = []; // Store fetched group data
 
   void _loadGroupChats() async {
-    List<Map<String, dynamic>> groupList = await DatabaseHelper.instance.queryAllGroups();
+    List<Map<String, dynamic>> groupList = await DatabaseHelper.instance
+        .queryAllGroups();
     print('Loaded groups: $groupList'); // Debug log
 
     setState(() {
@@ -88,7 +91,6 @@ class _HomePageState extends State<HomePage> {
       groupDataList = groupList.map((entry) {
         return {
           'GroupName': entry['GroupName'],
-          'GroupMembers': entry['GroupMembers'], // Include GroupMembers column
         };
       }).toList();
     });
@@ -161,6 +163,9 @@ class _HomePageState extends State<HomePage> {
         key: _scaffoldKey,
         appBar: AppBar(
           title: const Text("SafeChat"),
+          actions: [
+            GroupNotifications(),  // 🔔 Notification Icon in AppBar
+          ],
         ),
         drawer: MyDrawer(onAddressBookEmailsChanged: onAddressBookEmailsChanged),
         body: IndexedStack(
@@ -306,11 +311,37 @@ class _HomePageState extends State<HomePage> {
                         "createdAt": FieldValue.serverTimestamp(),
                       };
 
+                      Map<String, dynamic> groupData1 = {
+                        "groupId": groupId,
+                        "messages": [] ,
+                        "createdAt": FieldValue.serverTimestamp(),
+                      };
+
+                      print("object");
                       // Store in Firestore under 'groups' collection
                       await FirebaseFirestore.instance.collection('groups').doc(groupId).set(groupData);
+                      await FirebaseFirestore.instance.collection('group_chats').doc(groupId).set(groupData1);
+                      String? adminEmail= currentUser.email;
+                      print(members);
+
+
+                      Future<List<String>> getUids(List<String> members) async {
+                        List<String?> uids = await Future.wait(
+                          members.map((email) => getUidForEmail(email)),
+                        );
+
+                        return uids.whereType<String>().toList(); // Filters out null values
+                      }
+
+                      List<String> uids = await getUids(members);
 
                       // Generate and store group key
                       await _generateGroupKey(groupId, members);
+
+
+
+
+                      await announceGroupToMembers(groupId, adminEmail!, groupName, uids);
 
                       await DatabaseHelper.instance.insertGroup(
                         groupName,
@@ -319,10 +350,6 @@ class _HomePageState extends State<HomePage> {
                       // ✅ Add the new group to local groupChats list
                       setState(() {
                         groupChats.add(groupName);
-                        String membersString = members.join(", ");
-
-                        groupChats.add(membersString);
-
                       });
 
                       _loadGroupChats(); // ✅ Call the function normally
@@ -421,7 +448,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-// Function to build group chat list
   Widget _buildGroupList() {
     if (groupChats.isEmpty) {
       return _emptyStateMessage("No groups available.");
@@ -437,23 +463,36 @@ class _HomePageState extends State<HomePage> {
             orElse: () => {}, // Return empty map if not found
           );
 
-          // Use the correct key name
-          String members = groupData.isNotEmpty && groupData.containsKey('GroupMembers')
-              ? groupData['GroupMembers'].toString()
-              : 'No members';
+          // Extract group ID from Firestore (or local DB)
+          String groupId = groupData.isNotEmpty && groupData.containsKey('GroupId')
+              ? groupData['GroupId'].toString()
+              : '';
 
+          // Placeholder for group secret key (for testing purposes)
+          SecretKey groupSecretKey =
+          SecretKey([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]); // Example placeholder key
+
+          // Return a single GroupTile with only the group name
           return GroupTile(
             groupName: groupName,
-            members: members,
             onTap: () {
-              print('Navigating to group chat: $groupName');
+              // Navigate to the GroupChatPage with the required parameters
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GroupChatPage(
+                    groupName: groupName,
+                    groupID: groupId,
+                    secretKey: groupSecretKey,
+                  ),
+                ),
+              );
             },
           );
         },
       );
     }
   }
-
   Widget _emptyStateMessage(String message) {
     return Center(
       child: Text(

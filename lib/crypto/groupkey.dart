@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
 
 // Initialize secure storage
-final storage = FlutterSecureStorage();
+final FlutterSecureStorage storage = const FlutterSecureStorage();
 
 // Function to fetch shared secrets from secure storage
 Future<List<String>> fetchSharedSecrets(List<String> emails) async {
@@ -69,6 +70,12 @@ Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, Str
   String groupKey = generateGroupKey(sharedSecrets);
   print("Generated Group Key for Group $groupId: $groupKey");
 
+
+  await storage.write(
+      key: 'group_secret_key_{$groupId}',
+      value: groupKey,
+  );
+
   // Encrypt the group key for each member
   Map<String, String> encryptedKeys = {};
   for (int i = 0; i < emails.length; i++) {
@@ -82,4 +89,35 @@ Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, Str
 
   return encryptedKeys;
 }
+
+Future<void> announceGroupToMembers(String groupId, String adminEmail, String groupName, List<String> memberUids) async {
+  FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  for (String uid in memberUids) {
+    DocumentReference docRef = firestore.collection('group_announcements').doc(uid);
+
+    print(memberUids);
+    await firestore.runTransaction((transaction) async {
+      DocumentSnapshot doc = await transaction.get(docRef);
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+        List<dynamic> groups = data['groups'] ?? [];
+        groups.add({
+          'group_id': groupId,
+          'admin': adminEmail,
+          'group_name': groupName,
+        });
+
+        int unreadCount = (data['unread_count'] ?? 0) + 1;
+
+        transaction.update(docRef, {
+          'groups': groups,
+          'unread_count': unreadCount,
+        });
+      }
+    });
+  }
+}
+
 

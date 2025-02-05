@@ -7,6 +7,8 @@ class DatabaseHelper {
   static Database? _database;
   static const _userTable = 'user_data';
   static const _messageTable = 'messages';
+  static const _groupTable = 'group_data';
+
 
   // Columns for user data
   static const _columnId = 'id';
@@ -21,6 +23,13 @@ class DatabaseHelper {
   static const _columnTimestamp = 'timestamp';
   static const _columnIsCurrentUser = 'isCurrentUser';
   static const _columnMessageID = 'messageID';
+
+  static const _columnGId = 'id';
+
+  static const _columnGroupName = 'groupName';
+  static const _columnGroupMembers = 'groupMembers';
+
+
 
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -63,20 +72,22 @@ class DatabaseHelper {
         )
       ''');
         await db.execute('''
-        CREATE TABLE groups (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          group_name TEXT UNIQUE
-        )
-      '''); // Create a groups table
+        CREATE TABLE $_groupTable (
+          $_columnGId INTEGER PRIMARY KEY AUTOINCREMENT,
+          $_columnGroupName TEXT,
+          $_columnGroupMembers TEXT
+  )
+''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 3) {
           await db.execute('''
-          CREATE TABLE IF NOT EXISTS groups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_name TEXT UNIQUE
-          )
-        '''); // Ensure groups table is added on upgrade
+            CREATE TABLE IF NOT EXISTS $_groupTable (
+              $_columnGId INTEGER PRIMARY KEY AUTOINCREMENT,
+              $_columnGroupName TEXT,
+              $_columnGroupMembers TEXT
+            )
+          ''');
         }
       },
     );
@@ -147,6 +158,22 @@ class DatabaseHelper {
       _columnName: nickname,
     });
   }
+
+  Future<int> insertGroup(String groupName, List<String> members) async {
+    final db = await database;
+
+    // Convert members list to a single string (comma-separated)
+    String membersString = members.join(',');
+
+    return await db.insert(_groupTable, {
+
+      _columnGroupName: groupName,
+      _columnGroupMembers: membersString,
+    },
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate groups
+    );
+  }
+
 
   Future<List<Map<String, dynamic>>> queryAllEmailsWithNicknames() async {
     final db = await instance.database;
@@ -231,24 +258,10 @@ class DatabaseHelper {
   }
   Future<List<Map<String, dynamic>>> queryAllGroups() async {
     final db = await database;
-    return await db.query('groups'); // Fetch all groups from SQLite
+    return await db.query(_groupTable); // Fetch all groups from SQLite
   }
 
-  Future<int> insertGroup(String groupName, List<String> members) async {
-    final db = await database;
 
-    // Convert members list to a single string (comma-separated)
-    String membersString = members.join(',');
-
-    return await db.insert(
-      'groups',
-      {
-        'group_name': groupName,
-        'members': membersString, // Store as a string
-      },
-      conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate groups
-    );
-  }
 
 
 }

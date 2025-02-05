@@ -6,6 +6,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../components/group_tile.dart';
 import '../components/my_drawer.dart';
 import '../components/user_tile.dart';
 import '../crypto/X3DHHelper.dart';
@@ -74,13 +75,24 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+
+  late List<Map<String, dynamic>> groupDataList = []; // Store fetched group data
+
   void _loadGroupChats() async {
     List<Map<String, dynamic>> groupList = await DatabaseHelper.instance.queryAllGroups();
+    print('Loaded groups: $groupList'); // Debug log
+
     setState(() {
-      groupChats = groupList.map<String>((entry) => entry['group_name'] as String).toList();
+      groupChats = groupList.map((entry) => entry['GroupName'] as String).toList();
+
+      groupDataList = groupList.map((entry) {
+        return {
+          'GroupName': entry['GroupName'],
+          'GroupMembers': entry['GroupMembers'], // Include GroupMembers column
+        };
+      }).toList();
     });
   }
-
 
   Future<bool> _hasPrivateKeys(String userId) async {
     String? userPreKeyPrivateBase64 =
@@ -300,9 +312,22 @@ class _HomePageState extends State<HomePage> {
                       // Generate and store group key
                       await _generateGroupKey(groupId, members);
 
-                      // Refresh UI after adding group
-                      _loadGroupChats();
-                      setState(() {}); // ✅ Force UI update
+                      await DatabaseHelper.instance.insertGroup(
+                        groupName,
+                        members,
+                      );
+                      // ✅ Add the new group to local groupChats list
+                      setState(() {
+                        groupChats.add(groupName);
+                        String membersString = members.join(", ");
+
+                        groupChats.add(membersString);
+
+                      });
+
+                      _loadGroupChats(); // ✅ Call the function normally
+                      setState(() {}); // Ensure UI updates properly
+
 
                       Navigator.pop(context); // Close dialog
                     }
@@ -316,7 +341,6 @@ class _HomePageState extends State<HomePage> {
       },
     );
   }
-
 
 // Function to generate and store the group key in Firestore
   Future<void> _generateGroupKey(String groupId, List<String> members) async {
@@ -341,9 +365,7 @@ class _HomePageState extends State<HomePage> {
   }
 
 
-
-
-
+// Function to build user list
   Widget _buildUserList() {
     if (addressBookEmails.isEmpty) {
       return _emptyStateMessage("Address book is empty.");
@@ -372,7 +394,7 @@ class _HomePageState extends State<HomePage> {
               SecretKey? generatedSecretKey;
 
               if (secretKeyString == null) {
-                print("Secret key doesn't exists.");
+                print("Secret key doesn't exist.");
               } else {
                 print('Secret key already exists.');
                 final secretKeyBytes = base64Decode(secretKeyString);
@@ -399,6 +421,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+// Function to build group chat list
   Widget _buildGroupList() {
     if (groupChats.isEmpty) {
       return _emptyStateMessage("No groups available.");
@@ -408,38 +431,28 @@ class _HomePageState extends State<HomePage> {
         itemBuilder: (context, index) {
           final groupName = groupChats[index];
 
-          return FutureBuilder<List<Map<String, dynamic>>>(
-            future: DatabaseHelper.instance.queryAllGroups(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return CircularProgressIndicator();
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Text('No groups found');
-              }
+          // Find the corresponding group data from groupDataList
+          final groupData = groupDataList.firstWhere(
+                (group) => group['GroupName'] == groupName,
+            orElse: () => {}, // Return empty map if not found
+          );
 
-              final groupData = snapshot.data!.firstWhere(
-                    (group) => group['group_name'] == groupName,
-                orElse: () => {},
-              );
+          // Use the correct key name
+          String members = groupData.isNotEmpty && groupData.containsKey('GroupMembers')
+              ? groupData['GroupMembers'].toString()
+              : 'No members';
 
-              String members = groupData['members'] ?? 'No members';
-
-              return ListTile(
-                title: Text(groupName),
-                subtitle: Text('Members: $members'),
-                leading: Icon(Icons.group),
-                onTap: () {
-                  // Navigate to group chat screen (to be implemented)
-                },
-              );
+          return GroupTile(
+            groupName: groupName,
+            members: members,
+            onTap: () {
+              print('Navigating to group chat: $groupName');
             },
           );
         },
       );
     }
   }
-
 
   Widget _emptyStateMessage(String message) {
     return Center(
@@ -450,5 +463,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-

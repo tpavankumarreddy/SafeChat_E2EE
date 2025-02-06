@@ -45,12 +45,15 @@ class _ChatPageState extends State<ChatPage> {
   bool _isDisappearingMessagesEnabled = false;
   Duration _disappearingDuration = Duration(seconds: 10); // Default duration
   bool _isClockButtonVisible = false;
+  Set<String> _selectedMessageIds = {}; // Track selected messages
+  bool _isSelectionMode = false;
+
 
   @override
   void initState() {
     super.initState();
     _initializeDerivedKeys();
-    _secureFlag();
+    //_secureFlag();
     String senderID = _authService.getCurrentUser()!.uid;
 
     // Initialize message stream only once
@@ -298,7 +301,18 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.receiverEmail)),
+      appBar: AppBar(
+        title: Text(widget.receiverEmail),
+        actions: _isSelectionMode
+            ? [
+          IconButton(
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: _deleteSelectedMessages,
+            tooltip: "Delete Selected Messages",
+          ),
+        ]
+            : [],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -309,6 +323,7 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
+
 
   //sSet<String> processedMessageIds = {}; // Store processed message IDs
 
@@ -360,23 +375,68 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildMessageItem(Map<String, dynamic> message) {
     final bool isCurrentUser = message['isCurrentUser'];
-    final String decryptedMessage = message['message'] as String;
-    final bool isAlgorithmChange = message['isAlgorithmChange'] ?? false;
+    final String decryptedMessage = message['message'];
+    final String messageId = message['messageId'];
 
-    // Define bubble colors for different cases
-    final bubbleColor = isAlgorithmChange
-        ? Colors.orangeAccent // Algorithm change messages
-        : (isCurrentUser ? Colors.green : Colors.blue.shade300); // Normal chats
+    bool isSelected = _selectedMessageIds.contains(messageId);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: ChatBubble(
-        message: decryptedMessage,
-        isCurrentUser: isCurrentUser,
-        bubbleColor: bubbleColor,
+    return GestureDetector(
+      onLongPress: () {
+        _toggleMessageSelection(messageId);
+      },
+      onTap: () {
+        if (_isSelectionMode) {
+          _toggleMessageSelection(messageId);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.grey.shade300 : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 5),
+        child: ChatBubble(
+          message: decryptedMessage,
+          isCurrentUser: isCurrentUser,
+          bubbleColor: isSelected
+              ? Colors.red.shade300
+              : (isCurrentUser ? Colors.green : Colors.blue.shade300),
+        ),
       ),
     );
   }
+  void _toggleMessageSelection(String messageId) {
+    setState(() {
+      if (_selectedMessageIds.contains(messageId)) {
+        _selectedMessageIds.remove(messageId);
+      } else {
+        _selectedMessageIds.add(messageId);
+      }
+      _isSelectionMode = _selectedMessageIds.isNotEmpty;
+    });
+  }
+  Future<void> _deleteSelectedMessages() async {
+    if (_selectedMessageIds.isEmpty) return;
+
+    try {
+      String senderID = _authService.getCurrentUser()!.uid;
+
+      for (String messageId in _selectedMessageIds) {
+        await _chatService.deleteMessage(senderID, widget.receiverID, messageId);
+      }
+
+      setState(() {
+        _decryptedMessages.removeWhere((msg) => _selectedMessageIds.contains(msg['messageId']));
+        _selectedMessageIds.clear();
+        _isSelectionMode = false;
+      });
+
+      print("Selected messages deleted.");
+    } catch (e) {
+      print("Error deleting messages: $e");
+    }
+  }
+
 
   Widget _buildUserInput() {
     return Padding(

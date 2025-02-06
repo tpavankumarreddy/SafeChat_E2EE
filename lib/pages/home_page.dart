@@ -13,7 +13,7 @@ import '../components/user_tile.dart';
 import '../crypto/X3DHHelper.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/chat_services.dart';
-import 'Group_chatpage.dart';
+//import 'Group_chatpage.dart';
 import 'address_book_page.dart';
 import 'chat_page.dart';
 import '../data/database_helper.dart';
@@ -477,16 +477,16 @@ class _HomePageState extends State<HomePage> {
             groupName: groupName,
             onTap: () {
               // Navigate to the GroupChatPage with the required parameters
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => GroupChatPage(
-                    groupName: groupName,
-                    groupID: groupId,
-                    secretKey: groupSecretKey,
-                  ),
-                ),
-              );
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => GroupChatPage(
+              //       groupName: groupName,
+              //       groupID: groupId,
+              //       secretKey: groupSecretKey,
+              //     ),
+              //   ),
+              // );
             },
           );
         },

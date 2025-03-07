@@ -19,11 +19,11 @@ class _GroupNotificationsState extends State<GroupNotifications> {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('group_announcements').doc(uid).snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null) {
+        if (!snapshot.hasData || snapshot.data == null || snapshot.data!.data() == null) {
           return Icon(Icons.notifications);
         }
 
-        var data = snapshot.data!.data() as Map<String, dynamic>;
+        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
         int unreadCount = data['unread_count'] ?? 0;
 
         return Stack(
@@ -37,7 +37,6 @@ class _GroupNotificationsState extends State<GroupNotifications> {
                 );
               },
             ),
-
             if (unreadCount > 0)
               Positioned(
                 right: 0,

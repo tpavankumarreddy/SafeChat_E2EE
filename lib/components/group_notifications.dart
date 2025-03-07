@@ -3,19 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../pages/GroupInvitationsPage.dart';
-import '../pages/join_group.dart';
-class GroupNotifications extends StatefulWidget {
-  final Function onGroupJoined;
 
-  GroupNotifications({required this.onGroupJoined});
-  void handleJoinGroup(String groupId) {
-    joinGroup(groupId, onGroupJoined);
-  }
+class GroupNotifications extends StatefulWidget {
+  final Function onGroupJoined; // Callback to update UI in HomePage
+
+  const GroupNotifications({Key? key, required this.onGroupJoined}) : super(key: key);
 
   @override
   _GroupNotificationsState createState() => _GroupNotificationsState();
 }
-
 
 class _GroupNotificationsState extends State<GroupNotifications> {
   @override
@@ -30,14 +26,16 @@ class _GroupNotificationsState extends State<GroupNotifications> {
         String uid = authSnapshot.data!.uid;
 
         return StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance.collection('group_announcements').doc(uid).snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('group_announcements')
+              .doc(uid)
+              .snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData || snapshot.data == null || snapshot.data!.data() == null) {
-              return _buildNotificationIcon(0);
+            int unreadCount = 0;
+            if (snapshot.hasData && snapshot.data?.data() != null) {
+              var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+              unreadCount = data['unread_count'] ?? 0;
             }
-
-            var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-            int unreadCount = data['unread_count'] ?? 0;
 
             return _buildNotificationIcon(unreadCount);
           },
@@ -50,13 +48,15 @@ class _GroupNotificationsState extends State<GroupNotifications> {
     return Stack(
       children: [
         IconButton(
-          icon: Icon(unreadCount > 0 ? Icons.notifications_active : Icons.notifications_none),
+          icon: Icon(
+            unreadCount > 0 ? Icons.notifications_active : Icons.notifications_none,
+          ),
           onPressed: () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => GroupInvitationsPage(
-                  onGroupJoined: widget.onGroupJoined, // Pass callback
+                  onGroupJoined: widget.onGroupJoined, // Pass the callback
                 ),
               ),
             );
@@ -71,7 +71,7 @@ class _GroupNotificationsState extends State<GroupNotifications> {
               backgroundColor: Colors.red,
               child: Text(
                 unreadCount.toString(),
-                style: TextStyle(fontSize: 12, color: Colors.white),
+                style: const TextStyle(fontSize: 12, color: Colors.white),
               ),
             ),
           ),

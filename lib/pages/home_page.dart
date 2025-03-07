@@ -14,6 +14,7 @@ import '../crypto/X3DHHelper.dart';
 import '../services/auth/auth_service.dart';
 import '../services/chat/chat_services.dart';
 //import 'Group_chatpage.dart';
+import 'Group_chatpage.dart';
 import 'address_book_page.dart';
 import 'chat_page.dart';
 import '../data/database_helper.dart';
@@ -93,11 +94,11 @@ class HomePageState extends State<HomePage> {
     print('Loaded groups: $groupList'); // Debug log
 
     setState(() {
-      groupChats = groupList.map((entry) => entry['GroupName'] as String).toList();
+      groupChats = groupList.map((entry) => entry['groupName'] as String).toList();
 
       groupDataList = groupList.map((entry) {
         return {
-          'GroupName': entry['GroupName'],
+          'GroupName': entry['groupName'],
         };
       }).toList();
     });
@@ -108,6 +109,8 @@ class HomePageState extends State<HomePage> {
     await _secureStorage.read(key: "identityKeyPairPrivate$userEmail");
     return userPreKeyPrivateBase64 != null && userPreKeyPrivateBase64.isNotEmpty;
   }
+
+
 
   Future<void> _checkPrivateKeysAndPrompt(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -483,17 +486,17 @@ class HomePageState extends State<HomePage> {
           return GroupTile(
             groupName: groupName,
             onTap: () {
-              // Navigate to the GroupChatPage with the required parameters
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => GroupChatPage(
-              //       groupName: groupName,
-              //       groupID: groupId,
-              //       secretKey: groupSecretKey,
-              //     ),
-              //   ),
-              // );
+            //  Navigate to the GroupChatPage with the required parameters
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GroupChatPage(
+                    groupName: groupName,
+                    groupID: groupId,
+                    secretKey: groupSecretKey,
+                  ),
+                ),
+              );
             },
           );
         },

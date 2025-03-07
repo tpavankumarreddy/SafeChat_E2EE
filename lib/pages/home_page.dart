@@ -25,10 +25,10 @@ class HomePage extends StatefulWidget {
   HomePage({super.key, required this.isLoggedIn});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  HomePageState createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   int _currentIndex = 0; // Track selected tab (0: Chats, 1: Groups)
   String? userEmail;
   final x3dhHelper = X3DHHelper();
@@ -41,16 +41,23 @@ class _HomePageState extends State<HomePage> {
   late List<String> groupChats=[]; // Store group chat names
 
   @override
+  @override
   void initState() {
     super.initState();
     userEmail = getUserEmail();
-    _scaffoldKey = GlobalKey<ScaffoldState>();
+    _scaffoldKey = GlobalKey();
     _loadAddressBookEmails();
-    _loadGroupChats(); // Load group chats
+
+    // Use addPostFrameCallback to delay execution until the widget is fully mounted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      loadGroupChats(); // Call loadGroupChats after the widget is mounted
+    });
+
     if (widget.isLoggedIn) {
       _checkPrivateKeysAndPrompt(context);
     }
   }
+
 
   User? getCurrentUser() {
     return _authService.getCurrentUser();
@@ -80,7 +87,7 @@ class _HomePageState extends State<HomePage> {
 
   late List<Map<String, dynamic>> groupDataList = []; // Store fetched group data
 
-  void _loadGroupChats() async {
+  void loadGroupChats() async {
     List<Map<String, dynamic>> groupList = await DatabaseHelper.instance
         .queryAllGroups();
     print('Loaded groups: $groupList'); // Debug log
@@ -352,7 +359,7 @@ class _HomePageState extends State<HomePage> {
                         groupChats.add(groupName);
                       });
 
-                      _loadGroupChats(); // ✅ Call the function normally
+                      loadGroupChats(); // ✅ Call the function normally
                       setState(() {}); // Ensure UI updates properly
 
 

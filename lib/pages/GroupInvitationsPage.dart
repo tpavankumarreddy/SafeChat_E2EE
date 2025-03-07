@@ -12,9 +12,12 @@ class GroupInvitationsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text("Group Invitations")),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('group_announcements').doc(uid).snapshots(),
+        stream: FirebaseFirestore.instance.collection('group_announcements')
+            .doc(uid)
+            .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data == null) return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData || snapshot.data == null)
+            return Center(child: CircularProgressIndicator());
 
           var data = snapshot.data!.data() as Map<String, dynamic>;
           List<dynamic> groups = data['groups'] ?? [];
@@ -42,4 +45,4 @@ class GroupInvitationsPage extends StatelessWidget {
       ),
     );
   }
-
+}

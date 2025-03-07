@@ -7,12 +7,10 @@ import '../data/database_helper.dart';
 import 'home_page.dart';
 
 final storage = FlutterSecureStorage();
-
-Future<void> joinGroup(String groupId) async {
+Future<void> joinGroup(String groupId, Function refreshUI) async {
   try {
     FirebaseFirestore firestore = FirebaseFirestore.instance;
-    // Fetch the group details from Firestore
-    DocumentSnapshot<Map<String, dynamic>> groupDoc = await FirebaseFirestore.instance
+    DocumentSnapshot<Map<String, dynamic>> groupDoc = await firestore
         .collection('groups')
         .doc(groupId)
         .get();
@@ -26,15 +24,12 @@ Future<void> joinGroup(String groupId) async {
 
       print("✅ Group added to local DB: $groupName");
 
-      // Reload groups in UI
-      HomePageState _h = HomePageState();
-      _h.loadGroupChats();
+      // Call the UI refresh function
+      refreshUI();
     } else {
       print("❌ Group not found.");
     }
-
-  }catch(e){
+  } catch (e) {
     print(e);
   }
-  }
-
+}

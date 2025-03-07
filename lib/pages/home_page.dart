@@ -171,7 +171,7 @@ class HomePageState extends State<HomePage> {
         appBar: AppBar(
           title: const Text("SafeChat"),
           actions: [
-            GroupNotifications(),  // 🔔 Notification Icon in AppBar
+            GroupNotifications(onGroupJoined: loadGroupChats), // 🔔 Notification Icon in AppBar
           ],
         ),
         drawer: MyDrawer(onAddressBookEmailsChanged: onAddressBookEmailsChanged),

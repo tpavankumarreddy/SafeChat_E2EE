@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'join_group.dart';
 
 class GroupInvitationsPage extends StatelessWidget {
+  final Function onGroupJoined;
+
+  GroupInvitationsPage({required this.onGroupJoined});
   @override
   Widget build(BuildContext context) {
     String? uid = FirebaseAuth.instance.currentUser?.uid;
@@ -16,8 +19,9 @@ class GroupInvitationsPage extends StatelessWidget {
             .doc(uid)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data == null)
+          if (!snapshot.hasData || snapshot.data == null) {
             return Center(child: CircularProgressIndicator());
+          }
 
           var data = snapshot.data!.data() as Map<String, dynamic>;
           List<dynamic> groups = data['groups'] ?? [];
@@ -31,7 +35,7 @@ class GroupInvitationsPage extends StatelessWidget {
                 subtitle: Text("Admin: ${group['admin']}"),
                 trailing: ElevatedButton(
                   onPressed: () async {
-                    await joinGroup(group['group_id']);
+                    await joinGroup(group['group_id'],onGroupJoined);
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text("Joined ${group['group_name']}"))
                     );

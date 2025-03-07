@@ -3,55 +3,79 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../pages/GroupInvitationsPage.dart';
-
+import '../pages/join_group.dart';
 class GroupNotifications extends StatefulWidget {
+  final Function onGroupJoined;
+
+  GroupNotifications({required this.onGroupJoined});
+  void handleJoinGroup(String groupId) {
+    joinGroup(groupId, onGroupJoined);
+  }
+
   @override
   _GroupNotificationsState createState() => _GroupNotificationsState();
 }
 
-class _GroupNotificationsState extends State<GroupNotifications> {
-  String? uid = FirebaseAuth.instance.currentUser?.uid;
 
+class _GroupNotificationsState extends State<GroupNotifications> {
   @override
   Widget build(BuildContext context) {
-    if (uid == null) return Container();
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('group_announcements').doc(uid).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data == null || snapshot.data!.data() == null) {
-          return Icon(Icons.notifications);
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, authSnapshot) {
+        if (!authSnapshot.hasData || authSnapshot.data == null) {
+          return Icon(Icons.notifications_none);
         }
 
-        var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
-        int unreadCount = data['unread_count'] ?? 0;
+        String uid = authSnapshot.data!.uid;
 
-        return Stack(
-          children: [
-            IconButton(
-              icon: Icon(Icons.notifications),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => GroupInvitationsPage()),
-                );
-              },
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                right: 0,
-                child: CircleAvatar(
-                  radius: 10,
-                  backgroundColor: Colors.red,
-                  child: Text(
-                    unreadCount.toString(),
-                    style: TextStyle(fontSize: 12, color: Colors.white),
-                  ),
-                ),
-              ),
-          ],
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('group_announcements').doc(uid).snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData || snapshot.data == null || snapshot.data!.data() == null) {
+              return _buildNotificationIcon(0);
+            }
+
+            var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+            int unreadCount = data['unread_count'] ?? 0;
+
+            return _buildNotificationIcon(unreadCount);
+          },
         );
       },
+    );
+  }
+
+  Widget _buildNotificationIcon(int unreadCount) {
+    return Stack(
+      children: [
+        IconButton(
+          icon: Icon(unreadCount > 0 ? Icons.notifications_active : Icons.notifications_none),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GroupInvitationsPage(
+                  onGroupJoined: widget.onGroupJoined, // Pass callback
+                ),
+              ),
+            );
+          },
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 8,
+            top: 8,
+            child: CircleAvatar(
+              radius: 10,
+              backgroundColor: Colors.red,
+              child: Text(
+                unreadCount.toString(),
+                style: TextStyle(fontSize: 12, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

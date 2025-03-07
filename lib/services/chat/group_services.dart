@@ -90,20 +90,5 @@ class GroupChatService {
     }
   }
 
-  // Retrieve all messages for a specific group
-  Future<List<Map<String, dynamic>>> getGroupMessagesFromFirestore(String groupID) async {
-    try {
-      QuerySnapshot querySnapshot = await _firestore
-          .collection("group_chats")
-          .doc(groupID)
-          .collection("messages")
-          .orderBy("timestamp", descending: true)
-          .get();
 
-      return querySnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
-    } catch (e) {
-      print("Error fetching group messages: $e");
-      return [];
-    }
-  }
 }

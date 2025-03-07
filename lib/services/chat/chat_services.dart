@@ -8,7 +8,7 @@ class ChatService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Stream<List<Map<String, dynamic>>> getUsersStream() {
-    return _firestore.collection("users").snapshots().map((snapshot) {
+    return _firestore.collection("user's").snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => doc.data()).toList();
     });
   }

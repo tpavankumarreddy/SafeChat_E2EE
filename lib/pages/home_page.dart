@@ -321,16 +321,20 @@ class HomePageState extends State<HomePage> {
                         "createdAt": FieldValue.serverTimestamp(),
                       };
 
-                      Map<String, dynamic> groupData1 = {
+                      DocumentReference groupChatRef = FirebaseFirestore.instance.collection('group_chats').doc(groupId);
+
+                      // Set initial group chat metadata
+                      await groupChatRef.set({
                         "groupId": groupId,
-                        "messages": [] ,
                         "createdAt": FieldValue.serverTimestamp(),
-                      };
+                      });
+
+                      await groupChatRef.collection('messages');
 
                       print("object");
                       // Store in Firestore under 'groups' collection
                       await FirebaseFirestore.instance.collection('groups').doc(groupId).set(groupData);
-                      await FirebaseFirestore.instance.collection('group_chats').doc(groupId).set(groupData1);
+                     // await FirebaseFirestore.instance.collection('group_chats').doc(groupId).set(groupData1);
                       String? adminEmail= currentUser.email;
                       print(members);
 
@@ -478,9 +482,8 @@ class HomePageState extends State<HomePage> {
               ? groupData['GroupId'].toString()
               : '';
 
-          // Placeholder for group secret key (for testing purposes)
-          SecretKey groupSecretKey =
-          SecretKey([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]); // Example placeholder key
+
+
 
           // Return a single GroupTile with only the group name
           return GroupTile(
@@ -493,7 +496,6 @@ class HomePageState extends State<HomePage> {
                   builder: (context) => GroupChatPage(
                     groupName: groupName,
                     groupID: groupId,
-                    secretKey: groupSecretKey,
                   ),
                 ),
               );

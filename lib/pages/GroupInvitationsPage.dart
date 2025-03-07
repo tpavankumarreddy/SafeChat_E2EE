@@ -46,3 +46,4 @@ class GroupInvitationsPage extends StatelessWidget {
     );
   }
 }
+

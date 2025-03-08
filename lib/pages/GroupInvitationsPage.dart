@@ -131,36 +131,25 @@ class GroupInvitationsPage extends StatelessWidget {
     );
   }
 
-  /// Decrypts the given encrypted text using AES encryption with the provided key.
-  Future<String?> decryptAES(String encryptedText, String adminEmail) async {
-    // Retrieve the shared secret associated with the admin's email
-    String? sharedSecret = await getSharedSecretWithAdmin(adminEmail);
-
-    // Check if the shared secret was retrieved successfully
-    if (sharedSecret == null) {
-      print("❌ Shared secret not found for admin: $adminEmail");
-      return null;
-    }
-
+  String decryptAES(String encryptedGroupKey, String sharedSecret) {
     // Derive the key from the shared secret (same as in encryption)
-    final keyBytes = encrypt.Key.fromUtf8(
+    final key = encrypt.Key.fromUtf8(
       sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32),
     );
 
     // Use the same IV as in encryption (IV.fromLength(16))
     final iv = encrypt.IV.fromLength(16);
 
-    // Create the encrypter instance with AES in CBC mode
-    final encrypter = encrypt.Encrypter(
-        encrypt.AES(keyBytes, mode: encrypt.AESMode.cbc));
+    // Create the encrypter instance with AES
+    final encrypter = encrypt.Encrypter(encrypt.AES(key));
 
     try {
       // Decrypt the Base64-encoded encrypted text
-      final decrypted = encrypter.decrypt64(encryptedText, iv: iv);
+      final decrypted = encrypter.decrypt64(encryptedGroupKey, iv: iv);
       return decrypted;
     } catch (e) {
       print("❌ Decryption failed: $e");
-      return null;
+      return "Decryption Failed";
     }
   }
 }

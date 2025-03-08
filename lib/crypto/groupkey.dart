@@ -47,16 +47,16 @@ String generateGroupKey(List<String> sharedSecrets) {
   return sha256.convert(utf8.encode(concatenatedHashes)).toString();
 }
 
-// Function to encrypt the group key using a shared secret
 String encryptGroupKey(String groupKey, String sharedSecret) {
-  // Ensure sharedSecret is exactly 32 bytes
-  final key = Key.fromUtf8(sharedSecret);
+  // Derive a 32-byte key from the shared secret
+  final key = Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
 
-  // AES in ECB mode (No IV required)
+  // AES in ECB mode (no IV required)
   final encrypter = Encrypter(AES(key, mode: AESMode.ecb, padding: 'PKCS7'));
 
   return encrypter.encrypt(groupKey).base64;
 }
+
 // Function to process group key creation and encryption
 Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, String groupId) async {
   // Fetch shared secrets from secure storage

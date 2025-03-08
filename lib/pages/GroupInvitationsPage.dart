@@ -81,7 +81,7 @@ class GroupInvitationsPage extends StatelessWidget {
                               // Decrypt the groupSharedSecret using shared secret key
                               String? decryptedGroupSecret = await decryptGroupKey(
                                   encryptedGroupSecret,
-                                  adminEmail);
+                                  sharedSecretKeyWithAdmin);
                               print(
                                   "🔓 Decrypted Group Secret: $decryptedGroupSecret");
                               await storage.write(
@@ -133,7 +133,7 @@ class GroupInvitationsPage extends StatelessWidget {
 
   String decryptGroupKey(String encryptedGroupKey, String sharedSecret) {
     try {
-      final key = encrypt.Key.fromUtf8(sharedSecret);
+      final key = encrypt.Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
 
       final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.ecb, padding: 'PKCS7'));
 

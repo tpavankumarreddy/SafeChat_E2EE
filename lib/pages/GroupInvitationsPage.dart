@@ -132,18 +132,17 @@ class GroupInvitationsPage extends StatelessWidget {
   }
 
   String decryptAES(String encryptedGroupKey, String sharedSecret) {
-    // Derive the key from the shared secret (same as in encryption)
-    final key = encrypt.Key.fromUtf8(
-      sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32),
-    );
-
-    // Use the same IV as in encryption (IV.fromLength(16))
-    final iv = encrypt.IV.fromLength(16);
-
-    // Create the encrypter instance with AES
-    final encrypter = encrypt.Encrypter(encrypt.AES(key));
-
     try {
+      // Derive the key from the shared secret using SHA-256
+      final hash = sha256.convert(utf8.encode(sharedSecret)).toString();
+      final key = encrypt.Key.fromUtf8(hash.substring(0, 32)); // Ensure 32 bytes (256 bits)
+
+      // Use the same IV as in encryption (IV.fromLength(16))
+      final iv = encrypt.IV.fromLength(16);
+
+      // Create the encrypter instance with AES
+      final encrypter = encrypt.Encrypter(encrypt.AES(key));
+
       // Decrypt the Base64-encoded encrypted text
       final decrypted = encrypter.decrypt64(encryptedGroupKey, iv: iv);
       return decrypted;

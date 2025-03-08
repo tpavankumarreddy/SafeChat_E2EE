@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -5,11 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'home_page.dart';
 import 'join_group.dart';
+import 'package:crypto/crypto.dart';
 
 class GroupInvitationsPage extends StatelessWidget {
   final Function onGroupJoined;
 
-  GroupInvitationsPage({Key? key, required this.onGroupJoined}) : super(key: key);
+  GroupInvitationsPage({Key? key, required this.onGroupJoined})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +25,9 @@ class GroupInvitationsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("Group Invitations")),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('group_announcements').doc(uid).snapshots(),
+        stream: FirebaseFirestore.instance.collection('group_announcements')
+            .doc(uid)
+            .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data == null) {
             return const Center(child: CircularProgressIndicator());
@@ -45,7 +51,8 @@ class GroupInvitationsPage extends StatelessWidget {
 
                       // Retrieve the group document from Firestore
                       DocumentSnapshot<Map<String, dynamic>> groupDoc =
-                      await FirebaseFirestore.instance.collection('groups').doc(group['group_id']).get();
+                      await FirebaseFirestore.instance.collection('groups').doc(
+                          group['group_id']).get();
 
                       if (groupDoc.exists) {
                         var groupData = groupDoc.data();
@@ -53,36 +60,43 @@ class GroupInvitationsPage extends StatelessWidget {
                           // Get the group admin's email
                           String? adminEmail = groupData['admin']; // Admin stored as email (String)
 
-                          String? groupId =  groupData['group_id'];
+                          String? groupId = groupData['group_id'];
                           // Get the groupSecretKeys map from Firestore
-                          Map<String, dynamic>? groupSecretKeys = groupData['groupSecretKeys'];
+                          Map<String,
+                              dynamic>? groupSecretKeys = groupData['groupSecretKeys'];
 
                           if (groupSecretKeys != null && adminEmail != null) {
                             // Find the encrypted group secret for this admin
                             String? encryptedGroupSecret = groupSecretKeys[userEmail];
 
                             // Get the shared secret key with the admin from local storage
-                            String? sharedSecretKeyWithAdmin = await getSharedSecretWithAdmin(adminEmail);
+                            String? sharedSecretKeyWithAdmin = await getSharedSecretWithAdmin(
+                                adminEmail);
 
                             print(adminEmail);
                             print(sharedSecretKeyWithAdmin);
                             print(encryptedGroupSecret);
-                            if (sharedSecretKeyWithAdmin != null && encryptedGroupSecret != null) {
+                            if (sharedSecretKeyWithAdmin != null &&
+                                encryptedGroupSecret != null) {
                               // Decrypt the groupSharedSecret using shared secret key
-                              String decryptedGroupSecret =
-                              decryptAES(encryptedGroupSecret, sharedSecretKeyWithAdmin);
-                              print("🔓 Decrypted Group Secret: $decryptedGroupSecret");
+                              String? decryptedGroupSecret = await decryptAES(
+                                  encryptedGroupSecret,
+                                  sharedSecretKeyWithAdmin);
+                              print(
+                                  "🔓 Decrypted Group Secret: $decryptedGroupSecret");
                               await storage.write(
                                 key: 'group_secret_key_{$groupId}',
                                 value: decryptedGroupSecret,
                               );
                             } else {
-                              print("❌ Missing either shared secret with admin or encrypted group secret.");
+                              print(
+                                  "❌ Missing either shared secret with admin or encrypted group secret.");
                             }
                           }
 
 
-                          print("👤 Group Admin: $adminEmail"); // Print the admin email
+                          print(
+                              "👤 Group Admin: $adminEmail"); // Print the admin email
                         }
                       } else {
                         print("❌ Group document not found.");
@@ -91,7 +105,8 @@ class GroupInvitationsPage extends StatelessWidget {
                       // UI Update and SnackBar Notification
                       onGroupJoined();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Joined ${group['group_name']}")),
+                        SnackBar(content: Text(
+                            "Joined ${group['group_name']}")),
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,17 +132,35 @@ class GroupInvitationsPage extends StatelessWidget {
   }
 
   /// Decrypts the given encrypted text using AES encryption with the provided key.
-  String decryptAES(String encryptedText, String key) {
-    final keyBytes = encrypt.Key.fromUtf8(key.padRight(32, ' ')); // Ensure 32-byte key
-    final iv = encrypt.IV.fromLength(16); // Use a zero IV for simplicity (Change this for better security)
-    final encrypter = encrypt.Encrypter(encrypt.AES(keyBytes, mode: encrypt.AESMode.cbc));
+  Future<String?> decryptAES(String encryptedText, String adminEmail) async {
+    // Retrieve the shared secret associated with the admin's email
+    String? sharedSecret = await getSharedSecretWithAdmin(adminEmail);
+
+    // Check if the shared secret was retrieved successfully
+    if (sharedSecret == null) {
+      print("❌ Shared secret not found for admin: $adminEmail");
+      return null;
+    }
+
+    // Derive the key from the shared secret (same as in encryption)
+    final keyBytes = encrypt.Key.fromUtf8(
+      sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32),
+    );
+
+    // Use the same IV as in encryption (IV.fromLength(16))
+    final iv = encrypt.IV.fromLength(16);
+
+    // Create the encrypter instance with AES in CBC mode
+    final encrypter = encrypt.Encrypter(
+        encrypt.AES(keyBytes, mode: encrypt.AESMode.cbc));
 
     try {
+      // Decrypt the Base64-encoded encrypted text
       final decrypted = encrypter.decrypt64(encryptedText, iv: iv);
       return decrypted;
     } catch (e) {
       print("❌ Decryption failed: $e");
-      return "Decryption Failed";
+      return null;
     }
   }
 }

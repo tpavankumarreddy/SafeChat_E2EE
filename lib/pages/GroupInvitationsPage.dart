@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -81,7 +83,7 @@ class GroupInvitationsPage extends StatelessWidget {
                               // Decrypt the groupSharedSecret using shared secret key
                               String? decryptedGroupSecret = await decryptGroupKey(
                                   encryptedGroupSecret,
-                                  sharedSecretKeyWithAdmin);
+                                  base64Decode(sharedSecretKeyWithAdmin));
                               print(
                                   "🔓 Decrypted Group Secret: $decryptedGroupSecret");
                               await storage.write(
@@ -131,12 +133,21 @@ class GroupInvitationsPage extends StatelessWidget {
     );
   }
 
-  String decryptGroupKey(String encryptedGroupKey, String sharedSecret) {
+  String decryptGroupKey(String encryptedGroupKey, Uint8List sharedSecret) {
     try {
-      final key = encrypt.Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
+      String sharedSecretString = base64Encode(sharedSecret);
 
-      final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.ecb, padding: 'PKCS7'));
+      // Derive the key from the shared secret using SHA-256
+      final key = encrypt.Key.fromUtf8(
+        sha256.convert(utf8.encode(sharedSecretString)).toString().substring(0, 32),
+      );
 
+      // Create the encrypter instance with AES in ECB mode and PKCS7 padding
+      final encrypter = encrypt.Encrypter(
+        encrypt.AES(key, mode: encrypt.AESMode.ecb, padding: 'PKCS7'),
+      );
+
+      // Decrypt the Base64-encoded encrypted text
       return encrypter.decrypt64(encryptedGroupKey);
     } catch (e) {
       print("❌ Decryption failed: $e");

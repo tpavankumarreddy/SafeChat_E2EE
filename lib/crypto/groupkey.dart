@@ -71,11 +71,14 @@ Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, Str
   String groupKey = generateGroupKey(sharedSecrets);
   print("Generated Group Key for Group $groupId: $groupKey");
 
+  print("87670000");
 
   await storage.write(
       key: 'group_secret_key_{$groupId}',
       value: groupKey,
   );
+
+  print("998767");
 
   // Encrypt the group key for each member
   Map<String, String> encryptedKeys = {};

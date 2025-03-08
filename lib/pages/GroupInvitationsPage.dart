@@ -53,6 +53,7 @@ class GroupInvitationsPage extends StatelessWidget {
                           // Get the group admin's email
                           String? adminEmail = groupData['admin']; // Admin stored as email (String)
 
+                          String? groupId =  groupData['group_id'];
                           // Get the groupSecretKeys map from Firestore
                           Map<String, dynamic>? groupSecretKeys = groupData['groupSecretKeys'];
 
@@ -68,14 +69,15 @@ class GroupInvitationsPage extends StatelessWidget {
                               String decryptedGroupSecret =
                               decryptAES(encryptedGroupSecret, sharedSecretKeyWithAdmin);
                               print("🔓 Decrypted Group Secret: $decryptedGroupSecret");
+                              await storage.write(
+                                key: 'group_secret_key_{$groupId}',
+                                value: decryptedGroupSecret,
+                              );
                             } else {
                               print("❌ Missing either shared secret with admin or encrypted group secret.");
                             }
                           }
-                          await storage.write(
-                            key: 'group_secret_key_{$groupId}',
-                            value: groupKey,
-                          );
+
 
                           print("👤 Group Admin: $adminEmail"); // Print the admin email
                         }

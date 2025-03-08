@@ -51,22 +51,31 @@ class GroupInvitationsPage extends StatelessWidget {
                         var groupData = groupDoc.data();
                         if (groupData != null) {
                           // Get the group admin's email
-                          String? adminEmail = groupData['admin']; // Admin is stored as email (String)
+                          String? adminEmail = groupData['admin']; // Admin stored as email (String)
 
-                          // Get the groupSharedSecret
-                          String? encryptedGroupSecret = groupData['groupSharedSecret'];
+                          // Get the groupSecretKeys map from Firestore
+                          Map<String, dynamic>? groupSecretKeys = groupData['groupSecretKeys'];
 
-                          // Get the shared secret key with the admin from local storage
-                          String? sharedSecretKeyWithAdmin = await storage.read(key: 'shared_Secret_With_$adminEmail');
+                          if (groupSecretKeys != null && adminEmail != null) {
+                            // Find the encrypted group secret for this admin
+                            String? encryptedGroupSecret = groupSecretKeys[userEmail];
 
-                          if (sharedSecretKeyWithAdmin != null && encryptedGroupSecret != null) {
-                            // Decrypt the groupSharedSecret using shared secret key
-                            String decryptedGroupSecret =
-                            decryptAES(encryptedGroupSecret, sharedSecretKeyWithAdmin);
-                            print("🔓 Decrypted Group Secret: $decryptedGroupSecret");
-                          } else {
-                            print("❌ Missing either shared secret with admin or encrypted group secret.");
+                            // Get the shared secret key with the admin from local storage
+                            String? sharedSecretKeyWithAdmin = await getSharedSecretWithAdmin(adminEmail);
+
+                            if (sharedSecretKeyWithAdmin != null && encryptedGroupSecret != null) {
+                              // Decrypt the groupSharedSecret using shared secret key
+                              String decryptedGroupSecret =
+                              decryptAES(encryptedGroupSecret, sharedSecretKeyWithAdmin);
+                              print("🔓 Decrypted Group Secret: $decryptedGroupSecret");
+                            } else {
+                              print("❌ Missing either shared secret with admin or encrypted group secret.");
+                            }
                           }
+                          await storage.write(
+                            key: 'group_secret_key_{$groupId}',
+                            value: groupKey,
+                          );
 
                           print("👤 Group Admin: $adminEmail"); // Print the admin email
                         }

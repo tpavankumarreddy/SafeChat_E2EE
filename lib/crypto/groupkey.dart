@@ -49,11 +49,11 @@ String generateGroupKey(List<String> sharedSecrets) {
 
 // Function to encrypt the group key using a shared secret
 String encryptGroupKey(String groupKey, String sharedSecret) {
-  // Derive a 32-byte key from the shared secret
-  final key = Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
+  // Ensure sharedSecret is exactly 32 bytes
+  final key = Key.fromUtf8(sharedSecret);
 
-  // AES in ECB mode (no IV required)
-  final encrypter = Encrypter(AES(key, mode: AESMode.ecb));
+  // AES in ECB mode (No IV required)
+  final encrypter = Encrypter(AES(key, mode: AESMode.ecb, padding: 'PKCS7'));
 
   return encrypter.encrypt(groupKey).base64;
 }

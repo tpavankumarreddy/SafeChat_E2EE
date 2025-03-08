@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -133,10 +133,9 @@ class GroupInvitationsPage extends StatelessWidget {
 
   String decryptGroupKey(String encryptedGroupKey, String sharedSecret) {
     try {
-      final key = encrypt.Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
+      final key = encrypt.Key.fromUtf8(sharedSecret);
 
-      // AES in ECB mode (no IV required)
-      final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.ecb));
+      final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.ecb, padding: 'PKCS7'));
 
       return encrypter.decrypt64(encryptedGroupKey);
     } catch (e) {

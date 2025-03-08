@@ -50,7 +50,6 @@ dependencies:
   pointycastle: ^3.9.1
   flutter_secure_storage: ^9.2.2
   cryptography: ^2.7.0
-  cryptography_flutter: ^2.3.2
   x25519: ^0.1.0
   cloud_functions: ^5.0.3
   provider: ^6.1.2
@@ -63,12 +62,11 @@ dependencies:
   flutter_password_strength: ^0.1.6
   get: ^4.6.5
   qr_flutter: ^4.1.0  # for generating QR codes
-  qr_code_scanner: ^1.0.1  # for scanning QR codes
+  qr_code_scanner_plus: ^2.0.10+1
   mobile_scanner: ^6.0.2
   sm_crypto: ^1.0.3
   blowfish: ^1.0.2
-  flutter_windowmanager: ^0.2.0
-
+  flutter_windowmanager_plus: ^1.0.1
 
 
 

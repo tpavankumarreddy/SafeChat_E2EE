@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:SafeChat/crypto/Encryption_helper.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
+import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import '../data/database_helper.dart';
 
 class GroupChatPage extends StatefulWidget {
@@ -75,8 +75,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
   }
 
   Future<void> _secureFlag() async {
-    await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
-  }
+    await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);  }
 
   Future<void> loadGroupSecretKey(String groupID) async {
     print(groupID);

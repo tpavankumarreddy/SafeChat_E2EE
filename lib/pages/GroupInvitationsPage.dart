@@ -64,6 +64,9 @@ class GroupInvitationsPage extends StatelessWidget {
                             // Get the shared secret key with the admin from local storage
                             String? sharedSecretKeyWithAdmin = await getSharedSecretWithAdmin(adminEmail);
 
+                            print(adminEmail);
+                            print(sharedSecretKeyWithAdmin);
+                            print(encryptedGroupSecret);
                             if (sharedSecretKeyWithAdmin != null && encryptedGroupSecret != null) {
                               // Decrypt the groupSharedSecret using shared secret key
                               String decryptedGroupSecret =
@@ -108,8 +111,9 @@ class GroupInvitationsPage extends StatelessWidget {
 
   /// Retrieves the shared secret key with the given admin email from local storage.
   Future<String?> getSharedSecretWithAdmin(String adminEmail) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString("shared_secret_$adminEmail"); // Key format: shared_secret_<adminEmail>
+    return await storage.read(
+      key: 'shared_Secret_With_$adminEmail',
+    );
   }
 
   /// Decrypts the given encrypted text using AES encryption with the provided key.

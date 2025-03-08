@@ -8,7 +8,7 @@ import 'package:SafeChat/services/chat/chat_services.dart';
 import 'package:flutter/material.dart';
 import 'package:SafeChat/crypto/Encryption_helper.dart';
 import 'package:cryptography/cryptography.dart';
-import 'package:flutter_windowmanager/flutter_windowmanager.dart';
+import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import '../data/database_helper.dart';
 
 class ChatPage extends StatefulWidget {
@@ -53,7 +53,7 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _initializeDerivedKeys();
-    //_secureFlag();
+    _secureFlag();
     String senderID = _authService.getCurrentUser()!.uid;
 
     // Initialize message stream only once
@@ -78,8 +78,7 @@ class _ChatPageState extends State<ChatPage> {
     print('[ChatPage - initState] Message stream initialized for senderID: $senderID');
   }
   Future<void> _secureFlag() async {
-    await FlutterWindowManager.addFlags(FlutterWindowManager.FLAG_SECURE);
-  }
+    await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);  }
   //
   // @override
   // void dispose() {

@@ -79,9 +79,9 @@ class GroupInvitationsPage extends StatelessWidget {
                             if (sharedSecretKeyWithAdmin != null &&
                                 encryptedGroupSecret != null) {
                               // Decrypt the groupSharedSecret using shared secret key
-                              String? decryptedGroupSecret = await decryptAES(
+                              String? decryptedGroupSecret = await decryptGroupKey(
                                   encryptedGroupSecret,
-                                  sharedSecretKeyWithAdmin);
+                                  adminEmail);
                               print(
                                   "🔓 Decrypted Group Secret: $decryptedGroupSecret");
                               await storage.write(
@@ -131,21 +131,14 @@ class GroupInvitationsPage extends StatelessWidget {
     );
   }
 
-  String decryptAES(String encryptedGroupKey, String sharedSecret) {
+  String decryptGroupKey(String encryptedGroupKey, String sharedSecret) {
     try {
-      // Derive the key from the shared secret using SHA-256
-      final hash = sha256.convert(utf8.encode(sharedSecret)).toString();
-      final key = encrypt.Key.fromUtf8(hash.substring(0, 32)); // Ensure 32 bytes (256 bits)
+      final key = encrypt.Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
 
-      // Use the same IV as in encryption (IV.fromLength(16))
-      final iv = encrypt.IV.fromLength(16);
+      // AES in ECB mode (no IV required)
+      final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.ecb));
 
-      // Create the encrypter instance with AES
-      final encrypter = encrypt.Encrypter(encrypt.AES(key));
-
-      // Decrypt the Base64-encoded encrypted text
-      final decrypted = encrypter.decrypt64(encryptedGroupKey, iv: iv);
-      return decrypted;
+      return encrypter.decrypt64(encryptedGroupKey);
     } catch (e) {
       print("❌ Decryption failed: $e");
       return "Decryption Failed";

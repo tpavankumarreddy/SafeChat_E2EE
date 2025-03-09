@@ -14,11 +14,6 @@ Future<void> joinGroup(String groupId, String userId) async {
   DocumentReference userRef = firestore.collection("user's").doc(userId);
 
   await FirebaseFirestore.instance.runTransaction((transaction) async {
-    // Add the user to the group's members list
-    transaction.update(groupRef, {
-      'members': FieldValue.arrayUnion([userId]),
-    });
-
     // Add the group to the user's joined groups
     transaction.update(userRef, {
       'joined_groups': FieldValue.arrayUnion([groupId]),

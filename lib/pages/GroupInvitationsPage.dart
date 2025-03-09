@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import '../data/database_helper.dart';
 import 'home_page.dart';
 import 'join_group.dart';
 import 'package:crypto/crypto.dart';
@@ -103,6 +104,12 @@ class GroupInvitationsPage extends StatelessWidget {
                       } else {
                         print("❌ Group document not found.");
                       }
+                      List<dynamic> membersList = groupDoc['members'];
+                      print(membersList);
+                      await DatabaseHelper.instance.insertGroup(
+                        group['group_name'],
+                        group['members'],
+                      );
 
                       // UI Update and SnackBar Notification
                       onGroupJoined();

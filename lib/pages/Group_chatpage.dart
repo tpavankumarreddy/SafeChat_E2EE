@@ -53,6 +53,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
   @override
   void initState() {
     super.initState();
+    print(widget.groupID);
     loadGroupSecretKey(widget.groupID);
     _secureFlag();
 

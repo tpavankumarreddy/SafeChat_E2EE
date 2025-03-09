@@ -358,7 +358,7 @@ class HomePageState extends State<HomePage> {
                       await announceGroupToMembers(groupId, adminEmail!, groupName, uids);
 
                       await DatabaseHelper.instance.insertGroup(
-                        groupName,
+                        groupName,groupId,
                         members,
                       );
                       // ✅ Add the new group to local groupChats list

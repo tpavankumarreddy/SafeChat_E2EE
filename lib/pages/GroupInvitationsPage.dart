@@ -39,6 +39,7 @@ class GroupInvitationsPage extends StatelessWidget {
           var data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
           List<dynamic> groups = data['groups'] ?? [];
 
+
           return ListView.builder(
             itemCount: groups.length,
             itemBuilder: (context, index) {
@@ -104,18 +105,26 @@ class GroupInvitationsPage extends StatelessWidget {
                       } else {
                         print("❌ Group document not found.");
                       }
-                      List<dynamic> membersList = groupDoc['members'];
-                      print(membersList);
+                      // List<dynamic> membersList = groupDoc['members'];
+                      // print(membersList);
+                      var groupData = groupDoc.data();
+                      List<dynamic> membersList = groupData?['members'];
+                      List<String> members = List<String>.from(membersList);
+
+                      print("object");
+                      print(groupData?['groupName']);
+                      print("object3");
+                      print(groupData?['members']);
                       await DatabaseHelper.instance.insertGroup(
-                        group['group_name'],
-                        group['members'],
+                        groupDoc['groupName'],groupDoc['groupId'],
+                        members,
                       );
 
                       // UI Update and SnackBar Notification
                       onGroupJoined();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(
-                            "Joined ${group['group_name']}")),
+                            "Joined ${groupDoc['groupName']}")),
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(

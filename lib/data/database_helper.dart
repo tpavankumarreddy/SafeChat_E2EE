@@ -27,6 +27,7 @@ class DatabaseHelper {
   static const _columnGId = 'id';
 
   static const _columnGroupName = 'groupName';
+  static const _columnGroupId = 'groupId';
   static const _columnGroupMembers = 'groupMembers';
 
 
@@ -50,7 +51,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'user_database$currentUserID.db');
     return await openDatabase(
       path,
-      version: 3, // Increment the version number
+      version: 30, // Increment the version number
       onCreate: (db, version) async {
         await db.execute('''
         CREATE TABLE $_userTable (
@@ -75,16 +76,18 @@ class DatabaseHelper {
         CREATE TABLE $_groupTable (
           $_columnGId INTEGER PRIMARY KEY AUTOINCREMENT,
           $_columnGroupName TEXT,
+          $_columnGroupId TEXT,
           $_columnGroupMembers TEXT
   )
 ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 3) {
+        if (oldVersion < 30) {
           await db.execute('''
             CREATE TABLE IF NOT EXISTS $_groupTable (
               $_columnGId INTEGER PRIMARY KEY AUTOINCREMENT,
               $_columnGroupName TEXT,
+              $_columnGroupId TEXT,
               $_columnGroupMembers TEXT
             )
           ''');
@@ -159,7 +162,7 @@ class DatabaseHelper {
     });
   }
 
-  Future<int> insertGroup(String groupName, List<String> members) async {
+  Future<int> insertGroup(String groupName, String groupId, List<String> members) async {
     final db = await database;
 
     // Convert members list to a single string (comma-separated)
@@ -168,6 +171,7 @@ class DatabaseHelper {
     return await db.insert(_groupTable, {
 
       _columnGroupName: groupName,
+      _columnGroupId: groupId,
       _columnGroupMembers: membersString,
     },
       conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate groups

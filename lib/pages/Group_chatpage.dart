@@ -135,7 +135,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       // Encrypt the message with the selected algorithm.
       final encryptedData = await _encryptionHelper.encryptMessage(
         _messageController.text,
-        groupkey,
+        derivedKeys[_selectedAlgorithm]!,
         algorithm: _selectedAlgorithm,
       );
 
@@ -195,7 +195,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
         final decryptedMessage = await _encryptionHelper.decryptMessage(
           cipherTextBase64,
           nonceBase64,
-          groupkey,
+          derivedKeys[_selectedAlgorithm]!,
           algorithm: algorithm,
         );
 

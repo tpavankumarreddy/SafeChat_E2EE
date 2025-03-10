@@ -55,6 +55,7 @@ class GroupChatService {
       Map<String, dynamic> messageData = {
         'messageID': '', // Will be populated after Firestore generates the ID
         'senderID': currentUserID,
+        'senderEmail': currentUserEmail,
         'message': encryptedMessage,
         'algorithm': algorithm,
         'timestamp': timestamp,

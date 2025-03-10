@@ -178,6 +178,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
       final String algorithm = data['algorithm'] ?? 'AES';
       final messageJson = data['message'];
+      final senderEmail = data['senderEmail'];
 
       try {
         Map messageData = jsonDecode(messageJson);
@@ -206,6 +207,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
           'isCurrentUser':
           data['senderID'] == _authService.getCurrentUser()!.uid,
           'isAlgorithmChange': messageData['isAlgorithmChange'] ?? false,
+          'senderEmail': senderEmail,
         });
 
         // Mark this message as processed.
@@ -414,10 +416,12 @@ class _GroupChatPageState extends State<GroupChatPage> {
     print(message);
   }
 
+
   Widget _buildMessageItem(Map<String, dynamic> message) {
     final bool isCurrentUser = message['isCurrentUser'];
     final String decryptedMessage = message['message'] as String;
     final bool isAlgorithmChange = message['isAlgorithmChange'] ?? false;
+    final senderEmail = message['senderEmail'];
 
     // Use different bubble colors for algorithm change messages or normal chats.
     final bubbleColor = isAlgorithmChange
@@ -426,12 +430,20 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
-      child: ChatBubble(
-        message: decryptedMessage,
-        isCurrentUser: isCurrentUser,
-        bubbleColor: bubbleColor,
+      child: Column(
+        crossAxisAlignment:
+        isCurrentUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          ChatBubble(
+            message: decryptedMessage,
+            sender: senderEmail,
+            isCurrentUser: isCurrentUser,
+            bubbleColor: bubbleColor,
+          ),
+        ],
       ),
     );
+
   }
 
   Widget _buildMessageList() {

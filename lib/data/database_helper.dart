@@ -265,6 +265,26 @@ class DatabaseHelper {
     return await db.query(_groupTable); // Fetch all groups from SQLite
   }
 
+  Future<String?> getGroupId(String groupName) async {
+    final db = await database;
+
+    // Query the database for the group ID where the groupName matches
+    List<Map<String, dynamic>> result = await db.query(
+      _groupTable,
+      columns: [_columnGroupId],
+      where: '$_columnGroupName = ?',
+      whereArgs: [groupName],
+    );
+
+    if (result.isNotEmpty) {
+      return result.first[_columnGroupId] as String;
+    } else {
+      return null; // Return null if not found
+    }
+  }
+
+
+
 
 
 

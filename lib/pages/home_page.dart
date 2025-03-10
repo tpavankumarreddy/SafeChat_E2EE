@@ -99,8 +99,10 @@ class HomePageState extends State<HomePage> {
       groupDataList = groupList.map((entry) {
         return {
           'GroupName': entry['groupName'],
+          'GroupId': entry['groupId'],
         };
       }).toList();
+
     });
   }
 
@@ -329,7 +331,14 @@ class HomePageState extends State<HomePage> {
                         "createdAt": FieldValue.serverTimestamp(),
                       });
 
-                      await groupChatRef.collection('messages');
+                      //await groupChatRef.collection('messages');
+                      final messagesRef = groupChatRef.collection("messages").doc(); // Auto-generate message ID
+
+                      // await messagesRef.set({
+                      //   "senderId": "system", // You can change this to the creator's UID
+                      //   "message": "Group created successfully!",
+                      //   "timestamp": FieldValue.serverTimestamp(),
+                      // });
 
                       print("object");
                       // Store in Firestore under 'groups' collection
@@ -477,10 +486,14 @@ class HomePageState extends State<HomePage> {
             orElse: () => {}, // Return empty map if not found
           );
 
+
+
           // Extract group ID from Firestore (or local DB)
           String groupId = groupData.isNotEmpty && groupData.containsKey('GroupId')
               ? groupData['GroupId'].toString()
               : '';
+
+          //print(groupData['GroupId'].toString());
 
 
 
@@ -495,7 +508,7 @@ class HomePageState extends State<HomePage> {
                 MaterialPageRoute(
                   builder: (context) => GroupChatPage(
                     groupName: groupName,
-                    groupID: groupId,
+                    groupId: 'null',
                   ),
                 ),
               );

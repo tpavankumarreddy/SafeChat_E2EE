@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
-import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:encrypt/encrypt.dart';
 
 // Initialize secure storage
 final FlutterSecureStorage storage = const FlutterSecureStorage();
@@ -22,7 +20,9 @@ Future<List<String>> fetchSharedSecrets(List<String> emails) async {
 
         // Decode base64 directly without utf8.decode()
         List<int> secretBytes = base64Decode(encodedSecret);
-        String decodedSecret = base64Encode(secretBytes);
+
+        // Convert bytes to hex or keep as bytes
+        String decodedSecret = base64Encode(secretBytes); // If it’s a key, store it in base64
 
         print("✅ Decoded secret for $email: $decodedSecret");
         sharedSecrets.add(decodedSecret);
@@ -37,27 +37,29 @@ Future<List<String>> fetchSharedSecrets(List<String> emails) async {
   return sharedSecrets;
 }
 
+
 // Function to generate the group key
-Future<SecretKey> generateGroupKey(List<String> sharedSecrets) async {
-  List<int> concatenatedHashes = sharedSecrets
-      .map((secret) => sha256.convert(utf8.encode(secret)).bytes)
-      .expand((bytes) => bytes)
-      .toList();
+String generateGroupKey(List<String> sharedSecrets) {
+  String concatenatedHashes = sharedSecrets
+      .map((secret) => sha256.convert(utf8.encode(secret)).toString())
+      .join();
 
-  Digest finalHash = sha256.convert(concatenatedHashes);
-  return SecretKey(finalHash.bytes);
+  return sha256.convert(utf8.encode(concatenatedHashes)).toString();
 }
 
-// Encrypt the group key
-Future<String> encryptGroupKey(SecretKey groupKey, String sharedSecret) async {
-  List<int> groupKeyBytes = await groupKey.extractBytes();
-  final key = encrypt.Key(Uint8List.fromList(utf8.encode(sharedSecret)));
-  final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.ecb, padding: 'PKCS7'));
-  return encrypter.encryptBytes(groupKeyBytes).base64;
+String encryptGroupKey(String groupKey, String sharedSecret) {
+  // Derive a 32-byte key from the shared secret
+  final key = Key.fromUtf8(sha256.convert(utf8.encode(sharedSecret)).toString().substring(0, 32));
+
+  // AES in ECB mode (no IV required)
+  final encrypter = Encrypter(AES(key, mode: AESMode.ecb, padding: 'PKCS7'));
+
+  return encrypter.encrypt(groupKey).base64;
 }
 
-// Create and distribute the group key
+// Function to process group key creation and encryption
 Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, String groupId) async {
+  // Fetch shared secrets from secure storage
   List<String> sharedSecrets = await fetchSharedSecrets(emails);
 
   if (sharedSecrets.isEmpty) {
@@ -65,18 +67,26 @@ Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, Str
     return {};
   }
 
-  SecretKey groupKey = await generateGroupKey(sharedSecrets);
-  List<int> groupKeyBytes = await groupKey.extractBytes();
-  String groupKeyBase64 = base64Encode(groupKeyBytes);
-  print("Generated Group Key for Group $groupId: $groupKeyBase64");
+  // Generate the group secret key
+  String groupKey = generateGroupKey(sharedSecrets);
+  print("Generated Group Key for Group $groupId: $groupKey");
 
-  await storage.write(key: 'group_secret_key_$groupId', value: groupKeyBase64);
+  print("87670000");
 
+  await storage.write(
+      key: 'group_secret_key_{$groupId}',
+      value: groupKey,
+  );
+
+  print("998767");
+
+  // Encrypt the group key for each member
   Map<String, String> encryptedKeys = {};
   for (int i = 0; i < emails.length; i++) {
-    encryptedKeys[emails[i]] = await encryptGroupKey(groupKey, sharedSecrets[i]);
+    encryptedKeys[emails[i]] = encryptGroupKey(groupKey, sharedSecrets[i]);
   }
 
+  // Display encrypted keys
   encryptedKeys.forEach((email, encryptedKey) {
     print("Encrypted key for $email: $encryptedKey");
   });
@@ -84,7 +94,6 @@ Future<Map<String, String>> createAndDistributeGroupKey(List<String> emails, Str
   return encryptedKeys;
 }
 
-// Announce group to members
 Future<void> announceGroupToMembers(String groupId, String adminEmail, String groupName, List<String> memberUids) async {
   FirebaseFirestore firestore = FirebaseFirestore.instance;
 
@@ -114,3 +123,5 @@ Future<void> announceGroupToMembers(String groupId, String adminEmail, String gr
     });
   }
 }
+
+

@@ -14,12 +14,11 @@ import '../data/database_helper.dart';
 
 class GroupChatPage extends StatefulWidget {
   final String groupName;
-  final String groupID;
-
+  late String groupId;
   GroupChatPage({
     Key? key,
     required this.groupName,
-    required this.groupID,
+    required this.groupId,
   }) : super(key: key);
 
   @override
@@ -27,6 +26,7 @@ class GroupChatPage extends StatefulWidget {
 }
 
 class _GroupChatPageState extends State<GroupChatPage> {
+  String? groupId;
   final TextEditingController _messageController = TextEditingController();
   final GroupChatService _chatService = GroupChatService();
   final AuthService _authService = AuthService();
@@ -53,15 +53,19 @@ class _GroupChatPageState extends State<GroupChatPage> {
   @override
   void initState() {
     super.initState();
-    print(widget.groupID);
-    loadGroupSecretKey(widget.groupID);
+    _initializeGroupChat();
+  }
+
+  Future<void> _initializeGroupChat() async {
+    await _fetchGroupID();
+    loadGroupSecretKey(widget.groupId);
     _secureFlag();
 
     // Initialize the group message stream using the groupID.
-    _messageStream = _chatService.getGroupMessages(widget.groupID);
+    _messageStream = _chatService.getGroupMessages(widget.groupId);
 
     // Optionally, sync group messages to the local database.
-    _chatService.syncGroupMessagesToLocalDB(widget.groupID);
+    _chatService.syncGroupMessagesToLocalDB(widget.groupId);
 
     // Listen for new group messages and decrypt them.
     _messageStream.listen((snapshot) async {
@@ -75,13 +79,27 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
+
+  Future<void> _fetchGroupID() async {
+    String? id = await DatabaseHelper.instance.getGroupId(widget.groupName);
+    print('dfsdf');
+    print(id);
+    // setState(() {
+    //   groupId = id; // Update the groupID dynamically
+    // });
+    widget.groupId= id!;
+  }
+
+
   Future<void> _secureFlag() async {
     await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);  }
 
   Future<void> loadGroupSecretKey(String groupID) async {
+    print('dfg');
     print(groupID);
-      groupSecretKey = await _secureStorage.read(
-      key: 'group_secret_key_{$groupID}') as String;
+      groupSecretKey = (await _secureStorage.read(
+      key: 'group_secret_key_{$groupID}'))!;
+      print(groupSecretKey);
   }
 
 
@@ -92,7 +110,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       // Encrypt the message with the selected algorithm.
       final encryptedData = await _encryptionHelper.encryptMessage(
         _messageController.text,
-        derivedKeys[_selectedAlgorithm]!,
+        groupSecretKey as SecretKey,
         algorithm: _selectedAlgorithm,
       );
 
@@ -106,7 +124,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
       // Send the message to the group chat collection.
       String? messageId = await _chatService.sendGroupMessage(
-        widget.groupID,
+        widget.groupId,
         jsonEncode(messageData),
         _selectedAlgorithm,
       );
@@ -182,7 +200,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       final deletionTask = Future.delayed(_disappearingDuration).then((_) async {
         if (!mounted) return;
 
-        await _chatService.deleteGroupMessage(widget.groupID, messageId);
+        await _chatService.deleteGroupMessage(widget.groupId, messageId);
 
         if (!mounted) return;
 
@@ -349,7 +367,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       );
 
       await _chatService.sendGroupMessage(
-        widget.groupID,
+        widget.groupId,
         jsonEncode({
           'cipherText': encryptedData['cipherText'],
           'nonce': encryptedData['nonce'],
@@ -401,7 +419,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text("No messages yet"));
         }
-
+print("object");
         // Decrypt only new messages.
         _decryptNewMessages(snapshot.data!.docs);
 

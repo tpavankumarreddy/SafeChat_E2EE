@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:nativewrappers/_internal/vm/lib/typed_data_patch.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
@@ -37,14 +38,18 @@ Future<List<String>> fetchSharedSecrets(List<String> emails) async {
   return sharedSecrets;
 }
 
+Uint8List generateGroupKey(List<String> sharedSecrets) {
+  // Hash each shared secret
+  List<int> concatenatedHashes = sharedSecrets
+      .map((secret) => sha256.convert(utf8.encode(secret)).bytes) // Get byte list
+      .expand((bytes) => bytes) // Flatten list
+      .toList();
 
-// Function to generate the group key
-String generateGroupKey(List<String> sharedSecrets) {
-  String concatenatedHashes = sharedSecrets
-      .map((secret) => sha256.convert(utf8.encode(secret)).toString())
-      .join();
+  // Final SHA-256 hash to derive group key
+  Digest finalHash = sha256.convert(concatenatedHashes);
 
-  return sha256.convert(utf8.encode(concatenatedHashes)).toString();
+  // Convert to Uint8List
+  return Uint8List.fromList(finalHash.bytes);
 }
 
 String encryptGroupKey(String groupKey, String sharedSecret) {

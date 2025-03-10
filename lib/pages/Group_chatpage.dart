@@ -96,12 +96,29 @@ class _GroupChatPageState extends State<GroupChatPage> {
     await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);  }
 
   Future<void> loadGroupSecretKey(String groupID) async {
-    print(groupID);
-    groupSecretKey = (await _secureStorage.read(
-        key: 'group_secret_key_{$groupID}'))!;
-    groupkey = SecretKey(base64Decode(groupSecretKey));
-    print(groupSecretKey);
-    print(groupkey);
+    print("Loading group secret key for groupID: $groupID");
+
+    // Read the base64 encoded key from storage
+    String? storedKey = await _secureStorage.read(key: 'group_secret_key_$groupID');
+
+    if (storedKey == null) {
+      print("Error: Group secret key not found!");
+      return;
+    }
+
+    print("Base64-encoded key length: ${storedKey.length}");
+
+    // Decode the key
+    List<int> decodedKey = base64Decode(storedKey);
+    print("Decoded key length: ${decodedKey.length}");
+    // Check the length after decoding
+    if (decodedKey.length != 32) {
+      print("Error: Decoded group key length is not 32 bytes. Got ${decodedKey.length} bytes.");
+      return;
+    }
+    // Store the decoded key
+    groupkey = SecretKey(decodedKey);
+    print("Group secret key loaded successfully.");
   }
 
 

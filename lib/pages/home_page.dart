@@ -332,7 +332,7 @@ class HomePageState extends State<HomePage> {
                       });
 
                       //await groupChatRef.collection('messages');
-                      final messagesRef = groupChatRef.collection("messages").doc(); // Auto-generate message ID
+                      await groupChatRef.collection("messages").doc(); // Auto-generate message ID
 
                       // await messagesRef.set({
                       //   "senderId": "system", // You can change this to the creator's UID
@@ -470,6 +470,11 @@ class HomePageState extends State<HomePage> {
       );
     }
   }
+  Future<String?> _fetchGroupID(String groupName) async {
+    String? id = await DatabaseHelper.instance.getGroupId(groupName);
+    print(id);
+    return id;
+  }
 
   Widget _buildGroupList() {
     if (groupChats.isEmpty) {
@@ -488,12 +493,7 @@ class HomePageState extends State<HomePage> {
 
 
 
-          // Extract group ID from Firestore (or local DB)
-          String groupId = groupData.isNotEmpty && groupData.containsKey('GroupId')
-              ? groupData['GroupId'].toString()
-              : '';
 
-          //print(groupData['GroupId'].toString());
 
 
 
@@ -501,14 +501,15 @@ class HomePageState extends State<HomePage> {
           // Return a single GroupTile with only the group name
           return GroupTile(
             groupName: groupName,
-            onTap: () {
+            onTap: () async {
             //  Navigate to the GroupChatPage with the required parameters
+              String? groupId = await _fetchGroupID(groupName);
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => GroupChatPage(
                     groupName: groupName,
-                    groupId: 'null',
+                    groupId: groupId!,
                   ),
                 ),
               );

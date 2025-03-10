@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/database_helper.dart';
 
 class GroupChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
 
   // Stream to listen for group messages
   Stream<QuerySnapshot> getGroupMessages(String groupID) {
@@ -45,7 +48,8 @@ class GroupChatService {
   Future<String?> sendGroupMessage(String groupID, String encryptedMessage, String algorithm) async {
     try {
       final Timestamp timestamp = Timestamp.now();
-      final currentUserID = _firestore.collection("users").doc().id;
+      final String currentUserID = _auth.currentUser!.uid;
+      final String currentUserEmail = _auth.currentUser!.email!;
 
       // Create the message data
       Map<String, dynamic> messageData = {

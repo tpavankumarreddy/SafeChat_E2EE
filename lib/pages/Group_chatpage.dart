@@ -34,7 +34,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   late final String groupSecretKey;
-  late final SecretKey groupkey;
+  late SecretKey groupkey = SecretKey(List.filled(32, 0)); // Placeholder key
 
   Map<String, SecretKey> derivedKeys = {};
   String _selectedAlgorithm = 'AES';
@@ -55,10 +55,11 @@ class _GroupChatPageState extends State<GroupChatPage> {
   void initState() {
     super.initState();
     _initializeGroupChat();
+    _initializeDerivedKeys();
   }
 
   Future<void> _initializeGroupChat() async {
-    await _fetchGroupID();
+    //await _fetchGroupID();
     loadGroupSecretKey(widget.groupId);
     _secureFlag();
 
@@ -81,15 +82,6 @@ class _GroupChatPageState extends State<GroupChatPage> {
   }
 
 
-  Future<void> _fetchGroupID() async {
-    String? id = await DatabaseHelper.instance.getGroupId(widget.groupName);
-    print('dfsdf');
-    print(id);
-    // setState(() {
-    //   groupId = id; // Update the groupID dynamically
-    // });
-    widget.groupId= id!;
-  }
 
 
   Future<void> _secureFlag() async {
@@ -121,6 +113,20 @@ class _GroupChatPageState extends State<GroupChatPage> {
     print("Group secret key loaded successfully.");
   }
 
+  Future<void> _initializeDerivedKeys() async {
+    try {
+      final masterKeyBytes = await groupkey.extractBytes();
+
+      derivedKeys['AES'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
+      derivedKeys['ChaCha20'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
+      derivedKeys['SM4'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
+      derivedKeys['Blowfish'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
+
+      print('Derived keys initialized.');
+    } catch (e) {
+      print('Error initializing derived keys: $e');
+    }
+  }
 
 
 
@@ -129,7 +135,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       // Encrypt the message with the selected algorithm.
       final encryptedData = await _encryptionHelper.encryptMessage(
         _messageController.text,
-        groupkey as SecretKey,
+        groupkey,
         algorithm: _selectedAlgorithm,
       );
 
@@ -177,16 +183,19 @@ class _GroupChatPageState extends State<GroupChatPage> {
         Map messageData = jsonDecode(messageJson);
         final cipherTextBase64 = messageData['cipherText'] ?? '';
         final nonceBase64 = messageData['nonce'] ?? '';
-        final SecretKey? key = derivedKeys[algorithm];
+        //final SecretKey? key = derivedKeys[algorithm];
 
-        if (cipherTextBase64.isEmpty || nonceBase64.isEmpty || key == null) {
+        //print(key?.extractBytes());
+        print(cipherTextBase64);
+        print(nonceBase64);
+        if (cipherTextBase64.isEmpty || nonceBase64.isEmpty) {
           continue; // Skip if any necessary data is missing.
         }
 
         final decryptedMessage = await _encryptionHelper.decryptMessage(
           cipherTextBase64,
           nonceBase64,
-          key,
+          groupkey,
           algorithm: algorithm,
         );
 
@@ -438,7 +447,6 @@ class _GroupChatPageState extends State<GroupChatPage> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text("No messages yet"));
         }
-        print("object");
         // Decrypt only new messages.
         _decryptNewMessages(snapshot.data!.docs);
 

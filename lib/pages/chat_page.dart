@@ -46,7 +46,7 @@ class _ChatPageState extends State<ChatPage> {
   Duration _disappearingDuration = Duration(seconds: 10); // Default duration
   bool _isClockButtonVisible = false;
   Set<String> _selectedMessageIds = {}; // Track selected messages
-  bool _isSelectionMode = false;
+  bool _isSelectionMode =  false;
 
 
   @override

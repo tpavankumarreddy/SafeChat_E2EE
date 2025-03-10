@@ -46,7 +46,7 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
                       key: 'backupPassword', value: _passwordController.text);
                   Navigator.pop(context);
                   final String currentUserEmail = _auth.currentUser!.email!;
-
+                  _passwordController.clear();
                   _backupData(currentUserEmail); // Call backup after confirming password
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -229,7 +229,12 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Your keys will be stored in an encrypted file. You will need to set a password to secure the backup.",
+              "This backup will include your public and private keys, "
+                  "individual chat keys with each users and group keys for "
+                  "each group you joined and all the databases. "
+                  "This backup will be stored in an encrypted file. "
+                  "You will need to set a password to secure the backup."
+                  "And you need to remember this password for using this backup.",
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 24),

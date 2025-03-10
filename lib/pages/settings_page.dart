@@ -1,4 +1,5 @@
 import 'package:SafeChat/main.dart';
+import 'package:SafeChat/pages/KeyBackup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -196,6 +197,16 @@ class SettingsPageState extends State<SettingsPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const PrivacyPage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock),
+            title: const Text('Backup'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => KeyBackupManager()),
               );
             },
           ),

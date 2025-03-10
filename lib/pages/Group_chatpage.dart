@@ -34,6 +34,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   late final String groupSecretKey;
+  late final SecretKey groupkey;
 
   Map<String, SecretKey> derivedKeys = {};
   String _selectedAlgorithm = 'AES';
@@ -95,11 +96,12 @@ class _GroupChatPageState extends State<GroupChatPage> {
     await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);  }
 
   Future<void> loadGroupSecretKey(String groupID) async {
-    print('dfg');
     print(groupID);
-      groupSecretKey = (await _secureStorage.read(
-      key: 'group_secret_key_{$groupID}'))!;
-      print(groupSecretKey);
+    groupSecretKey = (await _secureStorage.read(
+        key: 'group_secret_key_{$groupID}'))!;
+    groupkey = SecretKey(base64Decode(groupSecretKey));
+    print(groupSecretKey);
+    print(groupkey);
   }
 
 
@@ -110,7 +112,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       // Encrypt the message with the selected algorithm.
       final encryptedData = await _encryptionHelper.encryptMessage(
         _messageController.text,
-        groupSecretKey as SecretKey,
+        groupkey as SecretKey,
         algorithm: _selectedAlgorithm,
       );
 
@@ -419,7 +421,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text("No messages yet"));
         }
-print("object");
+        print("object");
         // Decrypt only new messages.
         _decryptNewMessages(snapshot.data!.docs);
 

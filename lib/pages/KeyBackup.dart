@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 class KeyBackupManager extends StatefulWidget {
+  const KeyBackupManager({super.key});
+
   @override
   _KeyBackupManagerState createState() => _KeyBackupManagerState();
 }
@@ -17,8 +19,6 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _passwordController = TextEditingController();
-  final RestoreBackupPage restoreBackupPage = RestoreBackupPage();
-
 
   Future<void> _promptForPassword() async {
     showDialog(
@@ -28,17 +28,17 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
           title: const Text("Enter Encryption Password"),
           content: TextField(
             controller: _passwordController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: "Password",
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             obscureText: true,
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text("Cancel"),
             ),
             ElevatedButton(
@@ -47,9 +47,8 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
                   await _secureStorage.write(
                       key: 'backupPassword', value: _passwordController.text);
                   Navigator.pop(context);
-                  final String currentUserEmail = _auth.currentUser!.email!;
                   _passwordController.clear();
-                  _backupData(currentUserEmail); // Call backup after confirming password
+                  _backupData();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Password cannot be empty")),
@@ -64,7 +63,7 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     );
   }
 
-  Future<void> _backupData(String email) async {
+  Future<void> _backupData() async {
     String? password = await _secureStorage.read(key: 'backupPassword');
     if (password == null || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,36 +73,22 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     }
 
     final String currentUserID = _auth.currentUser!.uid;
+    final String? currentUserEmail = _auth.currentUser!.email;
 
     String dbPath = await getDatabasesPath();
-    String dbPath1 = '${dbPath}/user_database$currentUserID.db';
+    String dbFilePath = '$dbPath/user_database$currentUserID.db';
 
-    // 🔹 Open Database
-    Database db = await openDatabase(dbPath1);
-
-    // 1. Backup Keys
-    Map<String, String> keyData = await _backupKeys(email,db);
-
-    // 2. Backup SQLite Database
+    Database db = await openDatabase(dbFilePath);
+    Map<String, String> keyData = await _backupKeys(currentUserEmail!,db);
     File? databaseFile = await _backupDatabase();
 
-    if (databaseFile == null) {
-      print("⚠️ No database file found for backup.");
-      return;
-    }
-
-    // 3. Convert keys to JSON
     String jsonData = jsonEncode(keyData);
-
-    // 4. Encrypt keys and database
     String encryptedKeys = _encryptData(jsonData, password);
-    List<int>? encryptedDbBytes;
-    if (databaseFile != null) {
-      encryptedDbBytes = _encryptDatabase(await databaseFile.readAsBytes(), password);
-    }
+    List<int>? encryptedDbBytes = databaseFile != null
+        ? _encryptDatabase(await databaseFile.readAsBytes(), password)
+        : null;
 
-
-    await _saveToFile(email, encryptedKeys, encryptedDbBytes);
+    await _saveToFile(encryptedKeys, encryptedDbBytes);
   }
 
   Future<Map<String, String>> _backupKeys(String email, Database db) async {
@@ -157,90 +142,57 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     return keyData;
   }
 
-
-
-
   Future<File?> _backupDatabase() async {
     try {
       String dbPath = await getDatabasesPath();
       final String currentUserID = _auth.currentUser!.uid;
-      File originalDb = File("$dbPath/user_database$currentUserID.db"); // Verify this name!
-
-      if (await originalDb.exists()) {
-        print("✅ Database file found at: ${originalDb.path}");  // Debugging
-
-        Directory backupDir = await getApplicationDocumentsDirectory();
-        File backupDb = File("${backupDir.path}/safechat_backup.db");
-        await originalDb.copy(backupDb.path);
-        return backupDb;
-      } else {
-        print("❌ Database file not found at: ${originalDb.path}"); // Debugging
-        return null;
-      }
+      File originalDb = File("$dbPath/user_database$currentUserID.db");
+      if (!await originalDb.exists()) return null;
+      Directory backupDir = await getApplicationDocumentsDirectory();
+      File backupDb = File("${backupDir.path}/safechat_backup.db");
+      await originalDb.copy(backupDb.path);
+      return backupDb;
     } catch (e) {
-      print("🔥 Database backup failed: $e");
       return null;
     }
   }
-
-
-
 
   String _encryptData(String data, String password) {
     final key = encrypt.Key.fromUtf8(password.padRight(32, '0'));
     final iv = encrypt.IV.fromLength(16);
     final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
     final encrypted = encrypter.encrypt(data, iv: iv);
-
     return jsonEncode({'iv': base64Encode(iv.bytes), 'data': encrypted.base64});
   }
 
   List<int> _encryptDatabase(List<int> dbBytes, String password) {
     final key = encrypt.Key.fromUtf8(password.padRight(32, '0'));
-    final iv = encrypt.IV.fromLength(16); // Generate a random IV
-
+    final iv = encrypt.IV.fromLength(16);
     final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
-
     final encrypted = encrypter.encryptBytes(dbBytes, iv: iv);
-
-    // Store IV along with the encrypted database bytes
-    List<int> ivAndEncrypted = iv.bytes + encrypted.bytes;
-
-    return ivAndEncrypted;
+    return iv.bytes + encrypted.bytes;
   }
 
-  Future<void> _saveToFile(String email, String encryptedKeys, List<int>? encryptedDbBytes) async {
+  Future<void> _saveToFile(String encryptedKeys, List<int>? encryptedDbBytes) async {
+    final String currentUserEmail = _auth.currentUser!.email!;
     Directory externalDir = Directory("/storage/emulated/0/Download");
-    File backupFile = File('${externalDir.path}/backup_$email.enc');
-
+    File backupFile = File('${externalDir.path}/SafeChat_Backup_$currentUserEmail.enc');
     Map<String, dynamic> backupData = {
       "keys": encryptedKeys,
       "database": encryptedDbBytes != null ? base64Encode(encryptedDbBytes) : null,
     };
-
-
-    print("🔍 Backup Data Before Saving: ${jsonEncode(backupData)}"); // Debugging
-
     await backupFile.writeAsString(jsonEncode(backupData));
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Backup saved to: ${backupFile.path}")),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Backup and Restore Data"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -248,31 +200,26 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "This backup will include your public and private keys, "
-                  "individual chat keys with each users and group keys for "
-                  "each group you joined and all the databases. "
-                  "This backup will be stored in an encrypted file. "
-                  "You will need to set a password to secure the backup."
-                  "And you need to remember this password for using this backup.",
+              "This backup includes your encryption keys and database. Ensure you remember your password.",
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 24),
             Center(
               child: ElevatedButton(
                 onPressed: _promptForPassword,
+                style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: const Text("Backup Now"),
               ),
             ),
-
             const SizedBox(height: 24),
-            TextButton(
-              onPressed: () async {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (context)=> RestoreBackupPage(),
-                ));
-              },
-              child: const Text('Restore from Backup'),
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => RestoreBackupPage())),
+                child: const Text('Restore from Backup'),
+              ),
             ),
+
           ],
         ),
       ),

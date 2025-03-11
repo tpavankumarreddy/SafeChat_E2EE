@@ -67,6 +67,7 @@ dependencies:
   sm_crypto: ^1.0.3
   blowfish: ^1.0.2
   flutter_windowmanager_plus: ^1.0.1
+  file_picker: ^9.0.2
 
 
 

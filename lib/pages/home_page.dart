@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:SafeChat/pages/restoreBackupPage.dart';
 import 'package:SafeChat/pages/settings_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cryptography/cryptography.dart';
@@ -48,15 +49,15 @@ class HomePageState extends State<HomePage> {
     userEmail = getUserEmail();
     _scaffoldKey = GlobalKey();
     _loadAddressBookEmails();
+    print(widget.isLoggedIn);
 
     // Use addPostFrameCallback to delay execution until the widget is fully mounted
     WidgetsBinding.instance.addPostFrameCallback((_) {
       loadGroupChats(); // Call loadGroupChats after the widget is mounted
     });
 
-    if (widget.isLoggedIn) {
       _checkPrivateKeysAndPrompt(context);
-    }
+
   }
 
 
@@ -106,9 +107,9 @@ class HomePageState extends State<HomePage> {
     });
   }
 
-  Future<bool> _hasPrivateKeys(String userId) async {
+  Future<bool> _hasPrivateKeys(String? userId) async {
     String? userPreKeyPrivateBase64 =
-    await _secureStorage.read(key: "identityKeyPairPrivate$userEmail");
+    await _secureStorage.read(key: "identityKeyPairPrivate$userId");
     return userPreKeyPrivateBase64 != null && userPreKeyPrivateBase64.isNotEmpty;
   }
 
@@ -117,7 +118,7 @@ class HomePageState extends State<HomePage> {
   Future<void> _checkPrivateKeysAndPrompt(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      bool hasKeys = await _hasPrivateKeys(user.uid);
+      bool hasKeys = await _hasPrivateKeys(user.email);
       if (!hasKeys) {
         showDialog(
           context: context,
@@ -126,8 +127,16 @@ class HomePageState extends State<HomePage> {
             return AlertDialog(
               title: const Text('Invalid Login Detected!'),
               content: const Text(
-                  'You must log in on the device where you first registered.'),
+                  'You must log in on the device where you first registered or restore from a backup.'),
               actions: [
+                TextButton(
+                  onPressed: () async {
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (context)=> RestoreBackupPage(),
+                    ));
+                  },
+                  child: const Text('Restore from Backup'),
+                ),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);

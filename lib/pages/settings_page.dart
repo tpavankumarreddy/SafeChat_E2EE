@@ -202,7 +202,7 @@ class SettingsPageState extends State<SettingsPage> {
           ),
           ListTile(
             leading: const Icon(Icons.lock),
-            title: const Text('Backup'),
+            title: const Text('Backup and Restore Data'),
             onTap: () {
               Navigator.push(
                 context,

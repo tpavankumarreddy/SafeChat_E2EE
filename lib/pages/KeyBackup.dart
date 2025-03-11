@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:SafeChat/pages/restoreBackupPage.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final TextEditingController _passwordController = TextEditingController();
+  final RestoreBackupPage restoreBackupPage = RestoreBackupPage();
 
 
   Future<void> _promptForPassword() async {
@@ -85,6 +87,11 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     // 2. Backup SQLite Database
     File? databaseFile = await _backupDatabase();
 
+    if (databaseFile == null) {
+      print("⚠️ No database file found for backup.");
+      return;
+    }
+
     // 3. Convert keys to JSON
     String jsonData = jsonEncode(keyData);
 
@@ -103,13 +110,13 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     Map<String, String> keyData = {};
 
     // 🔹 Load Identity & Prekeys
-    keyData['identityKeyPairPrivate'] =
+    keyData['identityKeyPairPrivate$email'] =
         await _secureStorage.read(key: 'identityKeyPairPrivate$email') ?? '';
-    keyData['identityKeyPairPublic'] =
+    keyData['identityKeyPairPublic$email'] =
         await _secureStorage.read(key: 'identityKeyPairPublic$email') ?? '';
-    keyData['preKeyPairPrivate'] =
+    keyData['preKeyPairPrivate$email'] =
         await _secureStorage.read(key: 'preKeyPairPrivate$email') ?? '';
-    keyData['preKeyPairPublic'] =
+    keyData['preKeyPairPublic$email'] =
         await _secureStorage.read(key: 'preKeyPairPublic$email') ?? '';
 
     // 🔹 Load One-Time Prekeys
@@ -118,8 +125,8 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
       String? privateKey = await _secureStorage.read(key: 'oneTimePreKeyPairPrivate$email$i');
       String? publicKey = await _secureStorage.read(key: 'oneTimePreKeyPairPublic$email$i');
       if (privateKey == null || publicKey == null) break;
-      keyData['oneTimePreKeyPairPrivate$i'] = privateKey;
-      keyData['oneTimePreKeyPairPublic$i'] = publicKey;
+      keyData['oneTimePreKeyPairPrivate$email$i'] = privateKey;
+      keyData['oneTimePreKeyPairPublic$email$i'] = publicKey;
       i++;
     }
 
@@ -131,7 +138,7 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     for (String userEmail in emails) {
       String? sharedSecret = await _secureStorage.read(key: 'shared_Secret_With_$userEmail');
       if (sharedSecret != null) {
-        keyData['sharedSecret_$userEmail'] = sharedSecret;
+        keyData['shared_Secret_With_$userEmail'] = sharedSecret;
       }
     }
 
@@ -143,11 +150,10 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     for (String groupId in groupIds) {
       String? groupSecret = await _secureStorage.read(key: 'group_secret_key_$groupId');
       if (groupSecret != null) {
-        keyData['groupSecret_$groupId'] = groupSecret;
+        keyData['group_secret_key_$groupId'] = groupSecret;
       }
     }
     print("Backup Data: $keyData");
-    await db.close();
     return keyData;
   }
 
@@ -158,21 +164,25 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
     try {
       String dbPath = await getDatabasesPath();
       final String currentUserID = _auth.currentUser!.uid;
-      File originalDb = File("$dbPath/user_database$currentUserID.db"); // Change to your database name
+      File originalDb = File("$dbPath/user_database$currentUserID.db"); // Verify this name!
+
       if (await originalDb.exists()) {
+        print("✅ Database file found at: ${originalDb.path}");  // Debugging
+
         Directory backupDir = await getApplicationDocumentsDirectory();
         File backupDb = File("${backupDir.path}/safechat_backup.db");
         await originalDb.copy(backupDb.path);
         return backupDb;
       } else {
-        print("Database file not found.");
+        print("❌ Database file not found at: ${originalDb.path}"); // Debugging
         return null;
       }
     } catch (e) {
-      print("Database backup failed: $e");
+      print("🔥 Database backup failed: $e");
       return null;
     }
   }
+
 
 
 
@@ -187,21 +197,29 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
 
   List<int> _encryptDatabase(List<int> dbBytes, String password) {
     final key = encrypt.Key.fromUtf8(password.padRight(32, '0'));
-    final iv = encrypt.IV.fromLength(16);
+    final iv = encrypt.IV.fromLength(16); // Generate a random IV
+
     final encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
+
     final encrypted = encrypter.encryptBytes(dbBytes, iv: iv);
 
-    return encrypted.bytes;
+    // Store IV along with the encrypted database bytes
+    List<int> ivAndEncrypted = iv.bytes + encrypted.bytes;
+
+    return ivAndEncrypted;
   }
 
   Future<void> _saveToFile(String email, String encryptedKeys, List<int>? encryptedDbBytes) async {
-    Directory externalDir = Directory("/storage/emulated/0/Download"); // Default Downloads folder
+    Directory externalDir = Directory("/storage/emulated/0/Download");
     File backupFile = File('${externalDir.path}/backup_$email.enc');
 
     Map<String, dynamic> backupData = {
       "keys": encryptedKeys,
       "database": encryptedDbBytes != null ? base64Encode(encryptedDbBytes) : null,
     };
+
+
+    print("🔍 Backup Data Before Saving: ${jsonEncode(backupData)}"); // Debugging
 
     await backupFile.writeAsString(jsonEncode(backupData));
 
@@ -211,11 +229,12 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
   }
 
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Backup Keys"),
+        title: const Text("Backup and Restore Data"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -243,6 +262,16 @@ class _KeyBackupManagerState extends State<KeyBackupManager> {
                 onPressed: _promptForPassword,
                 child: const Text("Backup Now"),
               ),
+            ),
+
+            const SizedBox(height: 24),
+            TextButton(
+              onPressed: () async {
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (context)=> RestoreBackupPage(),
+                ));
+              },
+              child: const Text('Restore from Backup'),
             ),
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:local_auth/local_auth.dart';
+import 'Security Profile Page.dart';
 import 'login_page.dart';
 import 'privacy_page.dart';
 import 'package:SafeChat/pages/themes_data.dart';
@@ -190,6 +191,17 @@ class SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+
+          ListTile(
+            leading: const Icon(Icons.delete),
+            title: const Text('Security Profile'),
+            onTap: ()  {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SecurityProfilePage(isBiometricEnabled: _isBiometricEnabled,)),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.lock),
             title: const Text('Privacy'),

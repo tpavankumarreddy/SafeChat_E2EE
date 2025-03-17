@@ -56,7 +56,7 @@ class HomePageState extends State<HomePage> {
       loadGroupChats(); // Call loadGroupChats after the widget is mounted
     });
 
-    Future.delayed(const Duration(seconds: 3), () async {
+    Future.delayed(const Duration(seconds: 10), () async {
       _checkPrivateKeysAndPrompt(context);
 
     });

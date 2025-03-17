@@ -52,15 +52,19 @@ class _GroupChatPageState extends State<GroupChatPage> {
   Set<String> processedMessageIds = {};
   final Set<Future<void>> _pendingDeletionTasks = {};
 
+  // Admin-related fields
+  String? _adminEmail; // To store the admin email from Firestore
+  bool _isAdmin = false; // To check if the current user is the admin
+
   @override
   void initState() {
     super.initState();
     _initializeGroupChat();
     _initializeDerivedKeys();
+    _fetchAdminEmail(); // Fetch the admin email when the page initializes
   }
 
   Future<void> _initializeGroupChat() async {
-    //await _fetchGroupID();
     loadGroupSecretKey(widget.groupId);
     _secureFlag();
 
@@ -82,17 +86,17 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
-
-
-
   Future<void> _secureFlag() async {
-    await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);  }
+    await FlutterWindowManagerPlus.addFlags(
+        FlutterWindowManagerPlus.FLAG_SECURE);
+  }
 
   Future<void> loadGroupSecretKey(String groupID) async {
     print("Loading group secret key for groupID: $groupID");
 
     // Read the base64 encoded key from storage
-    String? storedKey = await _secureStorage.read(key: 'group_secret_key_$groupID');
+    String? storedKey = await _secureStorage.read(
+        key: 'group_secret_key_$groupID');
 
     if (storedKey == null) {
       print("Error: Group secret key not found!");
@@ -106,7 +110,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
     print("Decoded key length: ${decodedKey.length}");
     // Check the length after decoding
     if (decodedKey.length != 32) {
-      print("Error: Decoded group key length is not 32 bytes. Got ${decodedKey.length} bytes.");
+      print("Error: Decoded group key length is not 32 bytes. Got ${decodedKey
+          .length} bytes.");
       return;
     }
     // Store the decoded key
@@ -118,10 +123,14 @@ class _GroupChatPageState extends State<GroupChatPage> {
     try {
       final masterKeyBytes = await groupkey.extractBytes();
 
-      derivedKeys['AES'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
-      derivedKeys['ChaCha20'] = SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
-      derivedKeys['SM4'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
-      derivedKeys['Blowfish'] = SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
+      derivedKeys['AES'] =
+          SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
+      derivedKeys['ChaCha20'] =
+          SecretKey(masterKeyBytes.sublist(0, 32)); // First 256 bits
+      derivedKeys['SM4'] =
+          SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
+      derivedKeys['Blowfish'] =
+          SecretKey(masterKeyBytes.sublist(0, 16)); // First 128 bits
 
       print('Derived keys initialized.');
     } catch (e) {
@@ -129,7 +138,27 @@ class _GroupChatPageState extends State<GroupChatPage> {
     }
   }
 
+  Future<void> _fetchAdminEmail() async {
+    try {
+      DocumentSnapshot groupDoc = await FirebaseFirestore.instance
+          .collection('groups')
+          .doc(widget.groupId)
+          .get();
 
+      if (groupDoc.exists) {
+        setState(() {
+          _adminEmail = groupDoc['admin']; // Assuming 'admin' is the field name
+          _isAdmin = _authService
+              .getCurrentUser()
+              ?.email == _adminEmail;
+        });
+      } else {
+        print("Group document does not exist");
+      }
+    } catch (e) {
+      print("Error fetching admin email: $e");
+    }
+  }
 
   Future<void> sendMessage() async {
     if (_messageController.text.isNotEmpty) {
@@ -225,10 +254,13 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
   void _scheduleMessageDeletion(String messageId) async {
     try {
-      String? currentUserId = _authService.getCurrentUser()?.uid;
+      String? currentUserId = _authService
+          .getCurrentUser()
+          ?.uid;
       if (currentUserId == null) return;
 
-      final deletionTask = Future.delayed(_disappearingDuration).then((_) async {
+      final deletionTask = Future.delayed(_disappearingDuration).then((
+          _) async {
         if (!mounted) return;
 
         await _chatService.deleteGroupMessage(widget.groupId, messageId);
@@ -236,7 +268,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
         if (!mounted) return;
 
         setState(() {
-          _decryptedMessages.removeWhere((msg) => msg['messageId'] == messageId);
+          _decryptedMessages.removeWhere((msg) =>
+          msg['messageId'] == messageId);
         });
       });
 
@@ -388,7 +421,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
     try {
       final selectedKey = derivedKeys[_selectedAlgorithm];
       if (selectedKey == null) {
-        throw Exception("No derived key found for algorithm $_selectedAlgorithm.");
+        throw Exception(
+            "No derived key found for algorithm $_selectedAlgorithm.");
       }
 
       final encryptedData = await _encryptionHelper.encryptMessage(
@@ -417,7 +451,6 @@ class _GroupChatPageState extends State<GroupChatPage> {
     print(message);
   }
 
-
   Widget _buildMessageItem(Map<String, dynamic> message) {
     final bool isCurrentUser = message['isCurrentUser'];
     final String decryptedMessage = message['message'] as String;
@@ -444,7 +477,6 @@ class _GroupChatPageState extends State<GroupChatPage> {
         ],
       ),
     );
-
   }
 
   Widget _buildMessageList() {
@@ -465,7 +497,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
         return ListView(
           reverse: true,
-          children: _decryptedMessages.map((msg) => _buildMessageItem(msg)).toList(),
+          children: _decryptedMessages.map((msg) => _buildMessageItem(msg))
+              .toList(),
         );
       },
     );
@@ -492,7 +525,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
           IconButton(
             icon: Icon(
               Icons.remove_red_eye,
-              color: _isDisappearingMessagesEnabled ? Colors.green : Colors.grey,
+              color: _isDisappearingMessagesEnabled ? Colors.green : Colors
+                  .grey,
             ),
             onPressed: _toggleDisappearingMessages,
             tooltip: "Toggle Disappearing Messages",
@@ -521,10 +555,15 @@ class _GroupChatPageState extends State<GroupChatPage> {
             onPressed: () => _showAlgorithmSelection(context),
             tooltip: "Change Algorithm",
           ),
+          // Add Invite Button for Admin
+
         ],
       ),
     );
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {

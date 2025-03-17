@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../data/database_helper.dart';
+
 class GroupDetailsPage extends StatefulWidget {
   final String groupId;
 
@@ -43,17 +45,15 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Future<void> fetchGroupMembers() async {
     try {
-      var membersSnapshot = await FirebaseFirestore.instance
-          .collection('groups')
-          .doc(widget.groupId)
-          .collection('members')
-          .get();
+      List<String> localMembers = await DatabaseHelper.instance.fetchGroupMembersFromDB(widget.groupId);
 
       setState(() {
-        members = membersSnapshot.docs.map((doc) => doc.data()).toList();
+        members = localMembers.map((member) => {'email': member}).toList();
       });
+
+      print("✅ Group members fetched from local DB: $members");
     } catch (e) {
-      print("Error fetching members: $e");
+      print("❌ Error fetching members: $e");
     }
   }
 
@@ -68,7 +68,7 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Group Name: ${groupData!['name']}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text("Group Name: ${groupData!['groupName']}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             SizedBox(height: 10),
             Text("Group Description: ${groupData!['description'] ?? 'No description'}"),
             SizedBox(height: 20),
@@ -80,8 +80,13 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                 itemCount: members.length,
                 itemBuilder: (context, index) {
                   return ListTile(
-                    title: Text(members[index]['name']),
+                    title: Text(
+                      (members[index].containsKey('email'))
+                          ? members[index]['email'] ?? "Unknown Name"  // Fallback if 'name' is null
+                          : "Unknown Member", // Fallback if structure is incorrect
+                    ),
                   );
+
                 },
               ),
             ),

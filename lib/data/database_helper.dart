@@ -179,6 +179,41 @@ class DatabaseHelper {
   }
 
 
+  Future<List<String>> fetchGroupMembersFromDB(String groupId) async {
+    final db = await database;
+
+    final result = await db.query(
+      _groupTable,
+      columns: [_columnGroupMembers],
+      where: '$_columnGroupId = ?',
+      whereArgs: [groupId],
+    );
+
+    if (result.isNotEmpty) {
+      print("Fetched Group Data: ${result.first}");
+
+      // Handle null case properly
+      final membersString = result.first[_columnGroupMembers] as String?;
+
+      if (membersString == null || membersString.trim().isEmpty) {
+        print("⚠️ No members found, returning empty list.");
+        return [];
+      }
+
+      final membersList = membersString.split(',');
+      print("✅ Group members fetched from local DB: $membersList");
+
+      return membersList;
+    } else {
+      print("⚠️ No group found in local DB for groupId: $groupId");
+      return []; // Return empty list if no group is found
+    }
+  }
+
+
+
+
+
   Future<List<Map<String, dynamic>>> queryAllEmailsWithNicknames() async {
     final db = await instance.database;
     return await db.query(_userTable);

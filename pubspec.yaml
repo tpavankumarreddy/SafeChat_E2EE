@@ -74,6 +74,7 @@ dependencies:
   vpn_connection_detector: ^1.0.9
   network_info_plus: ^6.1.3
   permission_handler: ^11.4.0
+  sqflite_sqlcipher: ^2.2.0
 
 
 

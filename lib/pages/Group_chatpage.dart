@@ -11,6 +11,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
 import '../data/database_helper.dart';
+import 'GroupDetailsPage.dart';
 
 class GroupChatPage extends StatefulWidget {
   final String groupName;
@@ -528,7 +529,28 @@ class _GroupChatPageState extends State<GroupChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.groupName)),
+      appBar: AppBar(
+        title: GestureDetector(
+          onTap: () {
+            // Navigate to Group Details Page
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GroupDetailsPage(groupId: widget.groupId),
+              ),
+            );
+          },
+          child: Text(
+            widget.groupName,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              decoration: TextDecoration
+                  .underline, // To indicate it's clickable
+            ),
+          ),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(child: _buildMessageList()),

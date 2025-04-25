@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:path/path.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';  // Use sqflite_sqlcipher instead of sqflite
+import 'package:sqflite/sqflite.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class DatabaseHelper {
@@ -8,6 +8,7 @@ class DatabaseHelper {
   static const _userTable = 'user_data';
   static const _messageTable = 'messages';
   static const _groupTable = 'group_data';
+
 
   // Columns for user data
   static const _columnId = 'id';
@@ -24,15 +25,16 @@ class DatabaseHelper {
   static const _columnMessageID = 'messageID';
 
   static const _columnGId = 'id';
+
   static const _columnGroupName = 'groupName';
   static const _columnGroupId = 'groupId';
   static const _columnGroupMembers = 'groupMembers';
 
+
+
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   static final DatabaseHelper instance = DatabaseHelper._();
-
-  // Add a password for SQLCipher encryption
-  static const _encryptionPassword = 'your_secure_password';
 
   DatabaseHelper._();
 
@@ -47,11 +49,9 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final String currentUserID = _auth.currentUser!.uid;
     final path = join(await getDatabasesPath(), 'user_database$currentUserID.db');
-
     return await openDatabase(
       path,
       version: 30, // Increment the version number
-      password: _encryptionPassword, // Add the encryption password
       onCreate: (db, version) async {
         await db.execute('''
         CREATE TABLE $_userTable (
@@ -78,8 +78,8 @@ class DatabaseHelper {
           $_columnGroupName TEXT,
           $_columnGroupId TEXT,
           $_columnGroupMembers TEXT
-        )
-      ''');
+  )
+''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 30) {
@@ -96,7 +96,7 @@ class DatabaseHelper {
     );
   }
 
-  // Rest of your methods remain unchanged
+
   Future<bool> messageExists(String messageID) async {
     final db = await database;
     final result = await db.query(
@@ -107,6 +107,7 @@ class DatabaseHelper {
     return result.isNotEmpty;
   }
 
+  // Insert decrypted chat messages into local database
   Future<int> insertMessage({
     required String messageID,
     required String senderID,
@@ -117,8 +118,9 @@ class DatabaseHelper {
   }) async {
     final db = await database;
 
+    // Check if message exists before inserting
     bool exists = await messageExists(messageID);
-    if (exists) return 0;
+    if (exists) return 0; // Skip duplicate messages
     return await db.insert(
       _messageTable,
       {
@@ -133,6 +135,7 @@ class DatabaseHelper {
     );
   }
 
+  // Retrieve chat messages between the current user and a specific receiver
   Future<List<Map<String, dynamic>>> getMessages(String senderID, String receiverID) async {
     final db = await database;
     return await db.query(
@@ -143,10 +146,13 @@ class DatabaseHelper {
     );
   }
 
+  // Clear chat messages
   Future<void> clearChatMessages() async {
     final db = await database;
     await db.delete(_messageTable);
   }
+
+  // Existing user data methods remain unchanged
 
   Future<int> insertEmail(String email, String nickname) async {
     final db = await instance.database;
@@ -158,16 +164,20 @@ class DatabaseHelper {
 
   Future<int> insertGroup(String groupName, String groupId, List<String> members) async {
     final db = await database;
+
+    // Convert members list to a single string (comma-separated)
     String membersString = members.join(',');
 
     return await db.insert(_groupTable, {
+
       _columnGroupName: groupName,
       _columnGroupId: groupId,
       _columnGroupMembers: membersString,
     },
-      conflictAlgorithm: ConflictAlgorithm.ignore,
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate groups
     );
   }
+
 
   Future<List<String>> fetchGroupMembersFromDB(String groupId) async {
     final db = await database;
@@ -180,21 +190,32 @@ class DatabaseHelper {
     );
 
     if (result.isNotEmpty) {
+      print("Fetched Group Data: ${result.first}");
+
+      // Handle null case properly
       final membersString = result.first[_columnGroupMembers] as String?;
 
       if (membersString == null || membersString.trim().isEmpty) {
+        print("⚠️ No members found, returning empty list.");
         return [];
       }
 
       final membersList = membersString.split(',');
+      print("✅ Group members fetched from local DB: $membersList");
+
       return membersList;
     } else {
-      return [];
+      print("⚠️ No group found in local DB for groupId: $groupId");
+      return []; // Return empty list if no group is found
     }
   }
 
+
+
+
+
   Future<List<Map<String, dynamic>>> queryAllEmailsWithNicknames() async {
-    final db = await instance.database;
+    final db = await instance.  database;
     return await db.query(_userTable);
   }
 
@@ -274,15 +295,15 @@ class DatabaseHelper {
     final db = await instance.database;
     await db.delete(_userTable);
   }
-
   Future<List<Map<String, dynamic>>> queryAllGroups() async {
     final db = await database;
-    return await db.query(_groupTable);
+    return await db.query(_groupTable); // Fetch all groups from SQLite
   }
 
   Future<String?> getGroupId(String groupName) async {
     final db = await database;
 
+    // Query the database for the group ID where the groupName matches
     List<Map<String, dynamic>> result = await db.query(
       _groupTable,
       columns: [_columnGroupId],
@@ -293,7 +314,14 @@ class DatabaseHelper {
     if (result.isNotEmpty) {
       return result.first[_columnGroupId] as String;
     } else {
-      return null;
+      return null; // Return null if not found
     }
   }
+
+
+
+
+
+
 }
+

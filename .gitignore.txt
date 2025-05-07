@@ -1,0 +1,58 @@
+# --- FLUTTER & DART ---
+.dart_tool/
+.packages
+.pub-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+.melos_tool/
+build/
+
+# --- FLUTTER BUILD OUTPUT ---
+**/Generated.xcconfig
+**/Pods/
+**/Podfile.lock
+**/xcuserdata/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/ServiceDefinitions.json
+ios/Runner.xcworkspace/
+*.xcuserstate
+
+# --- ANDROID STUDIO / INTELLIJ ---
+*.iml
+.idea/
+.gradle/
+android/.gradle/
+local.properties
+
+# --- FIREBASE CONFIGURATION (OPTIONAL) ---
+# Uncomment if storing secrets
+# android/app/google-services.json
+# ios/Runner/GoogleService-Info.plist
+
+# --- ANDROID KEYSTORE ---
+android/key.properties
+*.jks
+*.keystore
+
+# --- ENVIRONMENT FILES ---
+.env
+.env.*
+
+# --- SYSTEM FILES ---
+.DS_Store              # macOS
+Thumbs.db              # Windows
+ehthumbs.db            # Windows
+Desktop.ini            # Windows
+
+# --- WINDOWS FLUTTER BUILD ---
+windows/runner/Debug/
+windows/runner/Release/
+windows/flutter/ephemeral/
+windows/.vs/
+
+# --- VS CODE ---
+.vscode/
+
+# --- OTHERS ---
+*.log
